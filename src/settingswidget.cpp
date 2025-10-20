@@ -17,9 +17,22 @@ SettingsWidget::SettingsWidget(QWidget *parent) : QWidget(parent)
 
     // 自动录音选项
     m_autoRecordCheckBox = new QCheckBox("答题时自动录音");
+    
+    // 自动拍照选项
+    m_autoCaptureCheckBox = new QCheckBox("答题时自动拍照");
+    
+    // 拍照时间间隔设置
+    m_captureIntervalLabel = new QLabel("拍照时间间隔（秒）:");
+    m_captureIntervalSpinBox = new QSpinBox;
+    m_captureIntervalSpinBox->setRange(10, 300); // 10秒到5分钟
+    m_captureIntervalSpinBox->setValue(30); // 默认30秒
+    m_captureIntervalSpinBox->setSuffix(" 秒");
 
     
     surveySettingsLayout->addWidget(m_autoRecordCheckBox,0,0,1,3);
+    surveySettingsLayout->addWidget(m_autoCaptureCheckBox,1,0,1,3);
+    surveySettingsLayout->addWidget(m_captureIntervalLabel,2,0);
+    surveySettingsLayout->addWidget(m_captureIntervalSpinBox,2,1,1,2);
     
     m_mainLayout->addWidget(m_surveySettingsGroup);
     
@@ -59,12 +72,15 @@ SettingsWidget::SettingsWidget(QWidget *parent) : QWidget(parent)
 void SettingsWidget::loadSettings()
 {
     m_autoRecordCheckBox->setChecked(SettingsManager::getInstance().getValue("survey/autoRecord").toBool());
+    m_autoCaptureCheckBox->setChecked(SettingsManager::getInstance().getValue("survey/autoCapture").toBool());
+    m_captureIntervalSpinBox->setValue(SettingsManager::getInstance().getValue("survey/captureInterval", 30).toInt());
 }
 
 void SettingsWidget::saveSettings()
 {
     SettingsManager::getInstance().setValue("survey/autoRecord", m_autoRecordCheckBox->isChecked());
-
+    SettingsManager::getInstance().setValue("survey/autoCapture", m_autoCaptureCheckBox->isChecked());
+    SettingsManager::getInstance().setValue("survey/captureInterval", m_captureIntervalSpinBox->value());
 }
 
 void SettingsWidget::onSaveClicked()

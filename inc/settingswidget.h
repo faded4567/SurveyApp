@@ -9,6 +9,8 @@
 #include <QGroupBox>
 #include <QPushButton>
 #include <QSettings>
+#include <QLineEdit>
+#include <QSpinBox>
 
 class SettingsWidget : public QWidget
 {
@@ -34,7 +36,9 @@ private:
     // 答题设置相关控件
     QGroupBox *m_surveySettingsGroup;
     QCheckBox *m_autoRecordCheckBox;
-    
+    QCheckBox *m_autoCaptureCheckBox; // 添加自动拍照选项
+    QLabel *m_captureIntervalLabel;
+    QSpinBox *m_captureIntervalSpinBox; // 添加拍照时间间隔输入框
 
 };
 

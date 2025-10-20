@@ -34,7 +34,10 @@
 #include <QMediaFormat>
 #include <QMediaDevices>
 #include <QAudioFormat>
-#include <QFile>
+#include <QCamera>
+#include <QTimer>
+#include <QDir>
+#include <QImageCapture>
 #include "CustomUI.h"
 
 class SurveyFormWidget : public QWidget
@@ -77,6 +80,10 @@ private slots:
     bool evaluateGlobalRules(); // 添加全局规则评估函数
     void updateRecordTime(qint64 duration);
     void handleRecorderError();
+    
+    // 添加拍照相关槽函数
+    void capturePhoto();
+    void onCameraActiveChanged();
 
 private:
     void renderSurvey(const QJsonObject& schema);
@@ -89,12 +96,19 @@ private:
     void updateProgress(int num); // 添加更新进度条的方法
     void updateScrollBarVisibility();
     void adjustScrollBarRange(int pageHeight);
-    void ensureLayoutCalculated(); // 玣保布局计算完成
+    void ensureLayoutCalculated(); // 磣保布局计算完成
+    void AddFile(QString id, QString path);
 
     // 录音相关
     void requestAudioPermission();
     void StartRecord();
     void StopRecord();
+    
+    // 拍照相关
+    void initCamera();
+    void initializeCamera();
+    void startAutoCapture();
+    void stopAutoCapture();
     
     // 添加处理逻辑规则的函数
     bool evaluateExpression(const QString& expression, const QJsonObject& answers);
@@ -109,9 +123,10 @@ private:
     QJsonObject m_schema;
     
     // 文件上传相关
-    QMap<QString, QString> m_selectedFiles; // field -> file path
+    // QMap<QString, QString> m_selectedFiles; // field -> file path
+    QJsonArray m_selectedFiles;
     QMap<QString, QLabel*> m_fileLabels;    // field -> file list label
-    QMap<QString, QJsonObject> m_uploadedFiles; // field -> uploaded file info
+    QJsonArray m_uploadedFiles; // field -> uploaded file info
     
     // 触摸和滚动相关变量
     QPoint m_lastTouchPoint;
@@ -134,12 +149,24 @@ private:
     QLabel *m_progressLabel;
     int m_showNum;
 
-    // 录音 摄像相关
+    // 录音相关
     QMediaCaptureSession *captureSession;
     QAudioInput *audioInput;
     QMediaRecorder *mediaRecorder;
     QString m_output;
     QJsonObject m_autoUpLoadObj;
+    
+    // 拍照相关
+    QCamera *m_camera;
+    QTimer *m_captureTimer;
+    QDir m_photoDir;
+    bool m_autoCaptureEnabled;
+    QList<QString> m_capturedPhotos; // 存储已拍摄照片的路径
+
+    // 添加上传状态标志
+    bool m_isUploading = false;  // 标记是否有文件正在上传
+    int m_pendingUploads = 0;    // 记录待上传的文件数量
+    bool m_shouldSubmitAfterUpload = false; // 标记是否应该在上传完成后提交
 };
 
 #endif // SURVEYFORMWIDGET_H

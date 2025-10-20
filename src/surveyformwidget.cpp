@@ -148,7 +148,14 @@ SurveyFormWidget::SurveyFormWidget(QWidget *parent) : QWidget(parent)
     connect(mediaRecorder, &QMediaRecorder::durationChanged, this, &SurveyFormWidget::updateRecordTime);
     connect(mediaRecorder, &QMediaRecorder::errorChanged, this, &SurveyFormWidget::handleRecorderError);
 
+    // 初始化拍照相关组件
+    m_camera = new QCamera(this);
+    m_captureTimer = new QTimer(this);
+    m_autoCaptureEnabled = false;
 
+    // 连接相机信号
+    connect(m_camera, &QCamera::activeChanged, this, &SurveyFormWidget::onCameraActiveChanged);
+    connect(m_captureTimer, &QTimer::timeout, this, &SurveyFormWidget::capturePhoto);
 }
 
 void SurveyFormWidget::handleUploadButton(QPushButton* uploadButton, const QString& field)
@@ -159,7 +166,7 @@ void SurveyFormWidget::handleUploadButton(QPushButton* uploadButton, const QStri
     
     if (!filePath.isEmpty()) {
         // 保存选中的文件路径
-        m_selectedFiles[field] = filePath;
+        AddFile(field, filePath);
         
         // 更新文件列表标签
         QFileInfo fileInfo(filePath);
@@ -180,6 +187,8 @@ void SurveyFormWidget::setSurveySchema(const QJsonObject& schema)
 {
     m_schema = schema;
     renderSurvey(schema);
+
+
 }
 
 void SurveyFormWidget::handleUploadSuccsee(const QJsonObject &response)
@@ -187,12 +196,20 @@ void SurveyFormWidget::handleUploadSuccsee(const QJsonObject &response)
     qDebug()<<"handleUploadSuccsee.....";
     QString field,subField;
     QString fileName = response["data"].toObject()["originalName"].toString();
+    qDebug()<<fileName;
     for(int i=0;i<m_selectedFiles.size();i++)
     {
-        if(m_selectedFiles.values().at(i).contains(fileName))
-        {
-            field = m_selectedFiles.keys().at(i);
-            break;
+        QJsonObject obj = m_selectedFiles[i].toObject();
+        QJsonObject::iterator it;
+        for (it = obj.begin(); it != obj.end(); ++it) {
+            QString key = it.key();
+            QJsonValue value = it.value();
+            if(value.toString().contains(fileName))
+            {
+                field = key;
+                m_selectedFiles.removeAt(i);
+                break;
+            }
         }
     }
     for(int i=0;i<m_questions.size();i++)
@@ -214,12 +231,23 @@ void SurveyFormWidget::handleUploadSuccsee(const QJsonObject &response)
     // 从响应中提取文件信息并保存
     if (!field.isEmpty()) {
         QJsonObject obj = response["data"].toObject();
-        obj["subFiled"] = subField;
-        m_uploadedFiles[field] = obj;
+        obj["subField"] = subField;
+        obj["field"] = field;
+        m_uploadedFiles.append(obj);
+        qDebug()<<"success:"<<m_uploadedFiles;
         // QMessageBox::information(this, "上传成功", "文件上传成功");
-        if(!m_autoUpLoadObj.isEmpty())
-        {
-            emit submitSurvey(collectAnswers());
+        // 减少待上传计数
+        m_pendingUploads--;
+        // 如果所有文件都已上传完成，则更新上传状态
+        if (m_pendingUploads <= 0) {
+            m_isUploading = false;
+            m_pendingUploads = 0; // 确保不会出现负数
+
+            // 如果之前有提交请求被阻止，则现在执行提交
+            if (m_shouldSubmitAfterUpload) {
+                m_shouldSubmitAfterUpload = false;
+                emit submitSurvey(collectAnswers());
+            }
         }
     }
 }
@@ -227,7 +255,19 @@ void SurveyFormWidget::handleUploadSuccsee(const QJsonObject &response)
 void SurveyFormWidget::handleUploadFailed(const QString& error)
 {
     QMessageBox::warning(this, "上传失败", "文件上传失败: " + error);
-    emit submitSurvey(collectAnswers());
+    // 减少待上传计数
+    m_pendingUploads--;
+    // 如果所有文件都已上传完成，则更新上传状态
+    if (m_pendingUploads <= 0) {
+        m_isUploading = false;
+        m_pendingUploads = 0; // 确保不会出现负数
+
+        // 如果之前有提交请求被阻止，则现在执行提交
+        if (m_shouldSubmitAfterUpload) {
+            m_shouldSubmitAfterUpload = false;
+            emit submitSurvey(collectAnswers());
+        }
+    }
 }
 
 void SurveyFormWidget::renderSurvey(const QJsonObject& schema)
@@ -369,10 +409,17 @@ void SurveyFormWidget::renderSurvey(const QJsonObject& schema)
             m_nextButton->setVisible(true);
             m_submitButton->setVisible(false);
         }
+
         // 是否有录音
         if(SettingsManager::getInstance().getValue("survey/autoRecord").toBool())
         {
             requestAudioPermission();
+        }
+
+        // 检查是否启用自动拍照
+        m_autoCaptureEnabled = SettingsManager::getInstance().getValue("survey/autoCapture", false).toBool();
+        if (m_autoCaptureEnabled) {
+            initCamera();
         }
     }
     
@@ -1089,6 +1136,70 @@ void SurveyFormWidget::handleRecorderError()
 
 }
 
+void SurveyFormWidget::capturePhoto()
+{
+    if (!m_camera->isActive()) {
+        qWarning() << "摄像头未激活，无法拍照";
+        m_captureTimer->stop();
+        return;
+    }
+
+    // 生成照片文件名
+    QString fileName = QDateTime::currentDateTime().toString("yyyyMMdd_hhmmss") + ".jpg";
+    QString filePath = m_photoDir.absoluteFilePath(fileName);
+
+    // 创建图片捕获器并设置到捕获会话
+    QImageCapture *imageCapture = new QImageCapture(captureSession);
+    captureSession->setImageCapture(imageCapture);
+    imageCapture->setQuality(QImageCapture::HighQuality);
+
+    // 连接图片捕获信号
+    connect(imageCapture, &QImageCapture::imageCaptured, this, [this, filePath](int id, const QImage &preview) {
+        Q_UNUSED(id)
+        // 保存图片到文件
+        if (preview.save(filePath, "JPG")) {
+            m_capturedPhotos.append(filePath);
+            qDebug() << "照片已保存:" << filePath;
+        } else {
+            qWarning() << "保存照片失败:" << filePath;
+        }
+    });
+
+    // 拍摄完成后删除imageCapture对象
+    connect(imageCapture, &QImageCapture::imageSaved, this, [imageCapture]() {
+        // 从捕获会话中断开连接
+        imageCapture->captureSession()->setImageCapture(nullptr);
+        imageCapture->deleteLater();
+    });
+
+    // 连接错误信号
+    connect(imageCapture, &QImageCapture::errorOccurred, this, [imageCapture](int id, QImageCapture::Error error, const QString &errorString) {
+        Q_UNUSED(id)
+        qWarning() << "拍照发生错误:" << errorString << "错误代码:" << error;
+        // 从捕获会话中断开连接
+        imageCapture->captureSession()->setImageCapture(nullptr);
+        imageCapture->deleteLater();
+    });
+
+    // 捕获图片
+    int id = imageCapture->captureToFile(filePath);
+    if (id == -1) {
+        qWarning() << "拍照失败";
+        // 从捕获会话中断开连接
+        captureSession->setImageCapture(nullptr);
+        imageCapture->deleteLater();
+    }
+}
+
+void SurveyFormWidget::onCameraActiveChanged()
+{
+    if (m_camera->isActive()) {
+        qDebug() << "摄像头已激活";
+    } else {
+        qDebug() << "摄像头已停止";
+    }
+}
+
 bool SurveyFormWidget::evaluateExpression(const QString& expression, const QJsonObject& answers)
 {
     // 这是一个简化的表达式计算器实现
@@ -1490,12 +1601,23 @@ void SurveyFormWidget::onSubmitClicked()
     }
 
     // 停止录音
+    if(m_autoCaptureEnabled)
+    {
+        stopAutoCapture();
+    }
+
+    // 停止录音
     if(SettingsManager::getInstance().getValue("survey/autoRecord").toBool())
     {
         StopRecord();
-        return;
     }
 
+    // 如果有文件正在上传，则等待上传完成后再提交
+    if (m_isUploading) {
+        m_shouldSubmitAfterUpload = true;
+        QMessageBox::information(this, "正在上传", "文件正在上传中，请稍候...");
+        return;
+    }
 
     emit submitSurvey(collectAnswers());
 }
@@ -1582,12 +1704,11 @@ QJsonObject SurveyFormWidget::collectAnswers()
     }
 
     // 处理上传题的答案数据
-    for (auto it = m_uploadedFiles.constBegin(); it != m_uploadedFiles.constEnd(); ++it) {
+    for (int i=0;i<m_uploadedFiles.size();i++) {
 
-        QString field = it.key();
-        QJsonObject fileInfo = it.value();
-        QString fileId = fileInfo["id"].toString();
-        QString sub_id = fileInfo["subFiled"].toString();
+        QString field = m_uploadedFiles[i].toObject()["field"].toString();
+        QString fileId = m_uploadedFiles[i].toObject()["id"].toString();
+        QString sub_id = m_uploadedFiles[i].toObject()["subField"].toString();
 
         // 按照服务器要求的格式构建上传题答案
         // 格式为: {"questionId": {"fileId": "fileId"}}
@@ -1779,6 +1900,13 @@ void SurveyFormWidget::adjustScrollBarRange(int pageHeight)
     }
 }
 
+void SurveyFormWidget::AddFile(QString id, QString path)
+{
+    QJsonObject obj;
+    obj[id] = path;
+    m_selectedFiles.append(obj);
+}
+
 void SurveyFormWidget::requestAudioPermission()
 {
     QMicrophonePermission micPermission;
@@ -1896,7 +2024,114 @@ void SurveyFormWidget::StopRecord()
 
     // 上传有效的录音文件
     if (!m_autoUpLoadObj.isEmpty()) {
-        m_selectedFiles[m_autoUpLoadObj["id"].toString()] = m_output;
+
+        AddFile(m_autoUpLoadObj["id"].toString(), m_output);
+        m_pendingUploads++;  // 增加待上传计数
+        m_isUploading = true; // 设置上传状态为正在上传
         emit UploadFile(m_schema["id"].toString(), m_autoUpLoadObj["id"].toString(), m_output);
     }
+}
+
+void SurveyFormWidget::initCamera()
+{
+    // 请求相机权限
+    QCameraPermission cameraPermission;
+    switch (qApp->checkPermission(cameraPermission)) {
+    case Qt::PermissionStatus::Undetermined:
+        // 状态未定，向用户请求权限
+        qApp->requestPermission(cameraPermission, this, [this](const QPermission &permission) {
+            // 回调函数，处理权限请求结果
+            if (permission.status() == Qt::PermissionStatus::Granted) {
+                // 用户授予权限，可以初始化相机
+                initializeCamera();
+            } else {
+                // 用户拒绝权限，给出提示
+                qWarning() << "Camera permission denied!";
+                m_autoCaptureEnabled = false;
+                // 提示用户需要权限，并引导他们去应用设置中手动开启
+            }
+        });
+        return;
+    case Qt::PermissionStatus::Denied:
+        // 权限已被拒绝（例如之前拒绝过），需要引导用户到设置中开启
+        qWarning() << "Camera permission was previously denied.";
+        m_autoCaptureEnabled = false;
+        // 可以显示一个对话框，指导用户如何进入应用设置页面开启权限
+        return;
+    case Qt::PermissionStatus::Granted:
+        // 权限已被授予，可以直接初始化相机
+        initializeCamera();
+        break;
+    }
+}
+
+void SurveyFormWidget::initializeCamera()
+{
+    // 检查是否有可用的摄像头
+    if (QMediaDevices::videoInputs().isEmpty()) {
+        qWarning() << "没有找到可用的摄像头设备";
+        m_autoCaptureEnabled = false;
+        return;
+    }
+
+    // 设置摄像头
+    QCameraDevice cameraDevice = QMediaDevices::defaultVideoInput();
+    m_camera->setCameraDevice(cameraDevice);
+
+    // 将摄像头连接到媒体捕获会话
+    captureSession->setCamera(m_camera);
+
+    qDebug() << "摄像头初始化完成";
+
+    startAutoCapture();
+}
+
+void SurveyFormWidget::startAutoCapture()
+{
+    if (!m_autoCaptureEnabled) {
+        return;
+    }
+
+    // 启动摄像头
+    m_camera->start();
+
+    // 创建照片存储目录
+    QString cachePath = QStandardPaths::writableLocation(QStandardPaths::CacheLocation);
+    QString dirName = QDateTime::currentDateTime().toString("yyyyMMdd_hhmmss") + "_" + m_schema["name"].toString();
+    m_photoDir = QDir(cachePath);
+    if (!m_photoDir.exists(dirName)) {
+        m_photoDir.mkpath(dirName);
+    }
+    m_photoDir.cd(dirName);
+
+    // 启动定时器，根据设置的时间间隔拍摄
+    int interval = SettingsManager::getInstance().getValue("survey/captureInterval", 30).toInt();
+    m_captureTimer->start(interval * 1000); // 转换为毫秒
+
+    qDebug() << "自动拍照已启动，照片将保存到:" << m_photoDir.absolutePath() << "时间间隔:" << interval << "秒";
+}
+
+void SurveyFormWidget::stopAutoCapture()
+{
+    if (m_captureTimer->isActive()) {
+        m_captureTimer->stop();
+    }
+
+    if (m_camera->isActive()) {
+        m_camera->stop();
+    }
+    m_photoDir.setNameFilters(QStringList()<<"*.jpg");
+    QFileInfoList list = m_photoDir.entryInfoList();
+
+    for(int i=0;i<list.size();i++)
+    {
+        // 上传全部照片
+        if (!m_autoUpLoadObj.isEmpty()) {
+            AddFile(m_autoUpLoadObj["id"].toString(), list.at(i).absoluteFilePath());
+            m_pendingUploads++;  // 增加待上传计数
+            m_isUploading = true; // 设置上传状态为正在上传
+            emit UploadFile(m_schema["id"].toString(), m_autoUpLoadObj["id"].toString(), list.at(i).absoluteFilePath());
+        }
+    }
+    qDebug() << "自动拍照已停止 "<<"上传自动拍照文件数量"<<list.size();
 }
