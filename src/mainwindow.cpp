@@ -26,7 +26,7 @@
 #include <QScrollerProperties>
 #include <QGesture>
 #include <QPanGesture>
-
+#include "permissionmanager.h"
 // 定义应用名称常量
 static const QString APP_NAME = "SurveyKing客户端";
 
@@ -35,6 +35,7 @@ MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
 {
     InitLog();
+    requestInitialPermissions();
     setupUi();
     setupConnections();
     
@@ -388,3 +389,32 @@ void MainWindow::onBackToSurveyList()
     statusBar()->showMessage("已返回问卷列表");
 }
 
+void MainWindow::requestInitialPermissions()
+{
+    // 请求录音权限
+    PermissionManager::instance().requestAudioRecordingPermission([this](bool granted) {
+        if (granted) {
+            qDebug() << "Initial audio recording permission granted";
+        } else {
+            qDebug() << "Initial audio recording permission denied";
+        }
+        
+        // 在录音权限请求完成后，再请求相机权限
+        PermissionManager::instance().requestCameraPermission([this](bool granted) {
+            if (granted) {
+                qDebug() << "Initial camera permission granted";
+            } else {
+                qDebug() << "Initial camera permission denied";
+            }
+            
+            // 在相机权限请求完成后，再请求定位权限
+            PermissionManager::instance().requestLocationPermission([](bool granted) {
+                if (granted) {
+                    qDebug() << "Initial location permission granted";
+                } else {
+                    qDebug() << "Initial location permission denied";
+                }
+            });
+        });
+    });
+}

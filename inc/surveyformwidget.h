@@ -39,6 +39,7 @@
 #include <QDir>
 #include <QImageCapture>
 #include "CustomUI.h"
+#include "permissionmanager.h"
 
 class SurveyFormWidget : public QWidget
 {
@@ -98,6 +99,12 @@ private:
     void adjustScrollBarRange(int pageHeight);
     void ensureLayoutCalculated(); // 磣保布局计算完成
     void AddFile(QString id, QString path);
+    void saveCurrentAnswer(int questionIndex);
+    void restoreAnswer(int questionIndex);
+    QJsonObject collectSingleQuestionAnswer(int questionIndex);
+    QString getAnswerValue(const QJsonObject& savedAnswer, const QString& field);
+    QLineEdit* findAssociatedLineEdit(QWidget* optionWidget);
+    void processOptionsWithBlankInputs(QWidget* page, const QString& field, QJsonObject& answer);
 
     // 录音相关
     void requestAudioPermission();
@@ -167,6 +174,9 @@ private:
     bool m_isUploading = false;  // 标记是否有文件正在上传
     int m_pendingUploads = 0;    // 记录待上传的文件数量
     bool m_shouldSubmitAfterUpload = false; // 标记是否应该在上传完成后提交
+    
+    // 答案存储相关
+    QMap<int, QJsonObject> m_answerCache; // 存储每个题目的答案
 };
 
 #endif // SURVEYFORMWIDGET_H

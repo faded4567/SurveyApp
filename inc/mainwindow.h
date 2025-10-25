@@ -36,6 +36,7 @@ public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
+
 protected:
     // 添加事件处理函数
     bool event(QEvent *event) override;
@@ -68,6 +69,7 @@ private:
     void setupConnections();
     void createMenus();
     void InitLog();
+    void requestInitialPermissions();
 
     QStackedWidget *m_stackedWidget;
     DashboardWidget *m_dashboardWidget;

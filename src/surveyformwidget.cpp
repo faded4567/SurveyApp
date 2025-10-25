@@ -452,6 +452,7 @@ void SurveyFormWidget::renderQuestionPage(int questionIndex)
     QString field = question["id"].toString();
     QJsonObject attribute = question["attribute"].toObject();
     bool isRequired = attribute["required"].toBool();
+    QString description = question["description"].toString(); // 获取题目描述
 
     QGroupBox *questionGroup = new QGroupBox;
     questionGroup->setStyleSheet("QGroupBox { background-color: white; border: 1px solid #b0d4e3; border-radius: 10px; margin: 10px; padding: 15px; }");
@@ -468,6 +469,14 @@ void SurveyFormWidget::renderQuestionPage(int questionIndex)
     questionLabel->setWordWrap(true);
     questionLabel->setTextFormat(Qt::RichText);
     questionLayout->addWidget(questionLabel);
+
+    // 如果有题目描述，则显示题目描述
+    if (!description.isEmpty()) {
+        QLabel *descriptionLabel = new QLabel(description);
+        descriptionLabel->setWordWrap(true);
+        descriptionLabel->setStyleSheet("font-size: 14px; color: #666666; margin-top: 5px; margin-bottom: 10px;");
+        questionLayout->addWidget(descriptionLabel);
+    }
 
     // 根据题型创建不同的输入控件
     if (type == "FillBlank") {
@@ -921,6 +930,9 @@ void SurveyFormWidget::renderQuestionPage(int questionIndex)
 
 void SurveyFormWidget::onNextClicked()
 {
+    // 保存当前题目的答案
+    saveCurrentAnswer(m_currentQuestionIndex);
+
     // 检查当前题是否为必填题但未回答
     if (isQuestionRequired(m_currentQuestionIndex) && !isQuestionAnswered(m_currentQuestionIndex)) {
         QMessageBox::warning(this, "提示", "这是必填题，请完成作答后再继续");
@@ -958,16 +970,390 @@ void SurveyFormWidget::onNextClicked()
     }
 }
 
+void SurveyFormWidget::saveCurrentAnswer(int questionIndex)
+{
+    if (questionIndex < 0 || questionIndex >= m_questions.size()) {
+        return;
+    }
+
+    QJsonObject currentAnswer = collectSingleQuestionAnswer(questionIndex);
+    m_answerCache[questionIndex] = currentAnswer;
+}
+
+QString SurveyFormWidget::getAnswerValue(const QJsonObject& savedAnswer, const QString& field)
+{
+    if (savedAnswer.contains(field)) {
+        QJsonObject fieldObj = savedAnswer[field].toObject();
+        if (!fieldObj.isEmpty()) {
+            // 返回第一个值（适用于单选、填空等）
+            return fieldObj.begin().value().toString();
+        }
+    }
+    return QString();
+}
+
+QJsonObject SurveyFormWidget::collectSingleQuestionAnswer(int questionIndex)
+{
+    QJsonObject answer;
+
+    if (questionIndex < 0 || questionIndex >= m_questions.size()) {
+        return answer;
+    }
+
+    QWidget* page = m_questionPages[questionIndex];
+    if (!page) return answer;
+
+    QList<QWidget*> widgets = page->findChildren<QWidget*>();
+    QJsonObject question = m_questions[questionIndex];
+    QString field = question["id"].toString();
+    QString type = question["type"].toString();
+
+    // 根据题型收集答案，确保格式与collectAnswers()一致
+    if (type == "FillBlank") {
+        for (QWidget* widget : widgets) {
+            if (QLineEdit* lineEdit = qobject_cast<QLineEdit*>(widget)) {
+                if (lineEdit->property("field").toString() == field) {
+                    QString value = lineEdit->text();
+                    if (!value.isEmpty()) {
+                        // 格式: {"questionId": {"optionId": "value"}}
+                        QString id = lineEdit->property("id").toString();
+                        if (!id.isEmpty()) {
+                            answer[field] = QJsonObject{{id, value}};
+                        }
+                    }
+                    break; // 每个填空题只有一个输入框
+                }
+            }
+        }
+    }
+    else if (type == "Textarea") {
+        for (QWidget* widget : widgets) {
+            if (QTextEdit* textEdit = qobject_cast<QTextEdit*>(widget)) {
+                if (textEdit->property("field").toString() == field) {
+                    QString value = textEdit->toPlainText();
+                    if (!value.isEmpty()) {
+                        // 格式: {"questionId": {"optionId": "value"}}
+                        QString id = textEdit->property("id").toString();
+                        if (!id.isEmpty()) {
+                            answer[field] = QJsonObject{{id, value}};
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+    }
+    else if (type == "Radio") {
+        QJsonObject valueObj;
+        for (QWidget* widget : widgets) {
+            if (QRadioButton* radioButton = qobject_cast<QRadioButton*>(widget)) {
+                if (radioButton->property("field").toString() == field && radioButton->isChecked()) {
+                    QString value = radioButton->property("value").toString();
+                    // 格式: {"questionId": {"optionId": "optionText"}}
+                    valueObj[value] = radioButton->text();
+                    break; // 单选只选一个
+                }
+            }
+        }
+        if (!valueObj.isEmpty()) {
+            answer[field] = valueObj;
+        }
+    }
+    else if (type == "Checkbox") {
+        QJsonObject valueObj;
+        for (QWidget* widget : widgets) {
+            if (QCheckBox* checkBox = qobject_cast<QCheckBox*>(widget)) {
+                if (checkBox->property("field").toString() == field && checkBox->isChecked()) {
+                    QString value = checkBox->property("value").toString();
+                    // 格式: {"questionId": {"optionId1": "optionText1", "optionId2": "optionText2"}}
+                    valueObj[value] = checkBox->text();
+                }
+            }
+        }
+        if (!valueObj.isEmpty()) {
+            answer[field] = valueObj;
+        }
+    }
+    else if (type == "Select") {
+        for (QWidget* widget : widgets) {
+            if (QComboBox* comboBox = qobject_cast<QComboBox*>(widget)) {
+                if (comboBox->property("field").toString() == field) {
+                    int currentIndex = comboBox->currentIndex();
+                    if (currentIndex > 0) { // 排除"请选择"
+                        QString value = comboBox->currentData().toString();
+                        // 格式: {"questionId": {"optionId": "optionId"}}
+                        answer[field] = QJsonObject{{value, value}};
+                    }
+                    break;
+                }
+            }
+        }
+    }
+    else if (type == "MultipleBlank") {
+        QJsonObject valueObj;
+        for (QWidget* widget : widgets) {
+            if (QLineEdit* lineEdit = qobject_cast<QLineEdit*>(widget)) {
+                if (lineEdit->property("field").toString() == field) {
+                    QString value = lineEdit->text();
+                    QString subField = lineEdit->property("subField").toString();
+                    if (!value.isEmpty() && !subField.isEmpty()) {
+                        // 格式: {"questionId": {"subFieldId": "value"}}
+                        valueObj[subField] = value;
+                    }
+                }
+            }
+        }
+        if (!valueObj.isEmpty()) {
+            answer[field] = valueObj;
+        }
+    }
+    else if (type == "Score" || type == "Nps") {
+        for (QWidget* widget : widgets) {
+            if (QSlider* slider = qobject_cast<QSlider*>(widget)) {
+                if (slider->property("field").toString() == field) {
+                    int value = slider->value();
+                    // 格式: {"questionId": {"questionId": "value"}}
+                    answer[field] = QJsonObject{{field, QString::number(value)}};
+                    break;
+                }
+            }
+        }
+    }
+    // 处理有填空的Radio和Checkbox选项
+    processOptionsWithBlankInputs(page, field, answer);
+
+    return answer;
+}
+
+void SurveyFormWidget::processOptionsWithBlankInputs(QWidget* page, const QString& field, QJsonObject& answer)
+{
+    // 处理单选按钮中的填空输入框
+    QList<QRadioButton*> radioButtons = page->findChildren<QRadioButton*>();
+    for (QRadioButton* radioButton : radioButtons) {
+        if (radioButton->property("field").toString() == field && radioButton->isChecked()) {
+            // 查找关联的输入框
+            QLineEdit* lineEdit = findAssociatedLineEdit(radioButton);
+            if (lineEdit && lineEdit->isEnabled() && !lineEdit->text().isEmpty()) {
+                QString value = lineEdit->text();
+                QString subField = lineEdit->property("subField").toString();
+                QString id = lineEdit->property("id").toString();
+
+                if (!answer.contains(field)) {
+                    answer[field] = QJsonObject();
+                }
+
+                QJsonObject obj = answer[field].toObject();
+                if (!obj.contains(subField)) {
+                    obj[subField] = QJsonObject();
+                }
+
+                QJsonObject subObj = obj[subField].toObject();
+                subObj[id] = value;
+                obj[subField] = subObj;
+                answer[field] = obj;
+            }
+            break; // 单选只处理一个
+        }
+    }
+
+    // 处理复选框中的填空输入框
+    QList<QCheckBox*> checkBoxes = page->findChildren<QCheckBox*>();
+    for (QCheckBox* checkBox : checkBoxes) {
+        if (checkBox->property("field").toString() == field && checkBox->isChecked()) {
+            // 查找关联的输入框
+            QLineEdit* lineEdit = findAssociatedLineEdit(checkBox);
+            if (lineEdit && lineEdit->isEnabled() && !lineEdit->text().isEmpty()) {
+                QString value = lineEdit->text();
+                QString subField = lineEdit->property("subField").toString();
+                QString id = lineEdit->property("id").toString();
+
+                if (!answer.contains(field)) {
+                    answer[field] = QJsonObject();
+                }
+
+                QJsonObject obj = answer[field].toObject();
+                if (!obj.contains(subField)) {
+                    obj[subField] = QJsonObject();
+                }
+
+                QJsonObject subObj = obj[subField].toObject();
+                subObj[id] = value;
+                obj[subField] = subObj;
+                answer[field] = obj;
+            }
+        }
+    }
+}
+
+QLineEdit* SurveyFormWidget::findAssociatedLineEdit(QWidget* optionWidget)
+{
+    // 在同一个布局中查找关联的输入框
+    QLayout* parentLayout = optionWidget->parentWidget()->layout();
+    if (!parentLayout) return nullptr;
+
+    for (int i = 0; i < parentLayout->count(); ++i) {
+        QLayoutItem* item = parentLayout->itemAt(i);
+        if (item && item->widget()) {
+            if (QLineEdit* lineEdit = qobject_cast<QLineEdit*>(item->widget())) {
+                // 检查是否在同一个水平布局中
+                if (lineEdit->parentWidget() == optionWidget->parentWidget()) {
+                    return lineEdit;
+                }
+            }
+        }
+    }
+
+    return nullptr;
+}
+
+void SurveyFormWidget::restoreAnswer(int questionIndex)
+{
+    if (!m_answerCache.contains(questionIndex)) {
+        return;
+    }
+
+    QJsonObject savedAnswer = m_answerCache[questionIndex];
+    if (savedAnswer.isEmpty()) {
+        return;
+    }
+
+    // 获取当前页面
+    QWidget *page = m_questionPages[questionIndex];
+    if (!page) return;
+
+    // 获取题目信息
+    QJsonObject question = m_questions[questionIndex];
+    QString field = question["id"].toString();
+    QString type = question["type"].toString();
+
+    if (!savedAnswer.contains(field)) {
+        return;
+    }
+
+    QJsonObject fieldAnswer = savedAnswer[field].toObject();
+
+    // 根据题型恢复答案
+    if (type == "FillBlank") {
+        QLineEdit* lineEdit = page->findChild<QLineEdit*>();
+        if (lineEdit) {
+            // 获取第一个答案值
+            if (!fieldAnswer.isEmpty()) {
+                QString value = fieldAnswer.begin().value().toString();
+                lineEdit->setText(value);
+            }
+        }
+    }
+    else if (type == "Textarea") {
+        QTextEdit* textEdit = page->findChild<QTextEdit*>();
+        if (textEdit) {
+            if (!fieldAnswer.isEmpty()) {
+                QString value = fieldAnswer.begin().value().toString();
+                textEdit->setPlainText(value);
+            }
+        }
+    }
+    else if (type == "Radio") {
+        QList<QRadioButton*> radioButtons = page->findChildren<QRadioButton*>();
+        for (QRadioButton* radio : radioButtons) {
+            QString optionValue = radio->property("value").toString();
+            if (fieldAnswer.contains(optionValue)) {
+                radio->setChecked(true);
+
+                // 处理关联的填空输入框
+                QLineEdit* lineEdit = findAssociatedLineEdit(radio);
+                if (lineEdit) {
+                    // 查找填空输入框的答案
+                    QString subField = lineEdit->property("subField").toString();
+                    if (fieldAnswer.contains(subField)) {
+                        QJsonObject subAnswer = fieldAnswer[subField].toObject();
+                        if (!subAnswer.isEmpty()) {
+                            QString blankValue = subAnswer.begin().value().toString();
+                            lineEdit->setText(blankValue);
+                            lineEdit->setEnabled(true);
+                        }
+                    }
+                }
+                break;
+            }
+        }
+    }
+    else if (type == "Checkbox") {
+        QList<QCheckBox*> checkBoxes = page->findChildren<QCheckBox*>();
+        for (QCheckBox* checkBox : checkBoxes) {
+            QString optionValue = checkBox->property("value").toString();
+            if (fieldAnswer.contains(optionValue)) {
+                checkBox->setChecked(true);
+
+                // 处理关联的填空输入框
+                QLineEdit* lineEdit = findAssociatedLineEdit(checkBox);
+                if (lineEdit) {
+                    // 查找填空输入框的答案
+                    QString subField = lineEdit->property("subField").toString();
+                    if (fieldAnswer.contains(subField)) {
+                        QJsonObject subAnswer = fieldAnswer[subField].toObject();
+                        if (!subAnswer.isEmpty()) {
+                            QString blankValue = subAnswer.begin().value().toString();
+                            lineEdit->setText(blankValue);
+                            lineEdit->setEnabled(true);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    else if (type == "Select") {
+        QComboBox* comboBox = page->findChild<QComboBox*>();
+        if (comboBox) {
+            // 查找匹配的选项
+            for (int i = 0; i < comboBox->count(); ++i) {
+                QString itemData = comboBox->itemData(i).toString();
+                if (fieldAnswer.contains(itemData)) {
+                    comboBox->setCurrentIndex(i);
+                    break;
+                }
+            }
+        }
+    }
+    else if (type == "MultipleBlank") {
+        QList<QLineEdit*> lineEdits = page->findChildren<QLineEdit*>();
+        for (QLineEdit* lineEdit : lineEdits) {
+            QString subField = lineEdit->property("subField").toString();
+            if (fieldAnswer.contains(subField)) {
+                QString value = fieldAnswer[subField].toString();
+                lineEdit->setText(value);
+            }
+        }
+    }
+    else if (type == "Score" || type == "Nps") {
+        QSlider* slider = page->findChild<QSlider*>();
+        if (slider && fieldAnswer.contains(field)) {
+            QString valueStr = fieldAnswer[field].toString();
+            bool ok;
+            int value = valueStr.toInt(&ok);
+            if (ok) {
+                slider->setValue(value);
+            }
+        }
+    }
+}
+
 void SurveyFormWidget::onPrevClicked()
 {
+    // 保存当前题目的答案
+    saveCurrentAnswer(m_currentQuestionIndex);
+
     if (m_currentQuestionIndex > 0) {
         int prevIndex = m_currentQuestionIndex - 1;
         renderQuestionPage(prevIndex);
+
+        // 恢复上一题的答案
+        restoreAnswer(prevIndex);
+
         m_stackedWidget->setCurrentIndex(prevIndex);
         m_currentQuestionIndex = prevIndex;
-        updateProgress(m_showNum); // 更新进度条
+        updateProgress(m_showNum);
         m_scrollArea->verticalScrollBar()->setValue(0);
-        
+
         // 更新按钮状态
         m_nextButton->setVisible(true);
         m_submitButton->setVisible(false);
@@ -1619,6 +2005,9 @@ void SurveyFormWidget::onSubmitClicked()
         return;
     }
 
+    // 清空答案缓存
+    m_answerCache.clear();
+
     emit submitSurvey(collectAnswers());
 }
 
@@ -1909,32 +2298,15 @@ void SurveyFormWidget::AddFile(QString id, QString path)
 
 void SurveyFormWidget::requestAudioPermission()
 {
-    QMicrophonePermission micPermission;
-    switch (qApp->checkPermission(micPermission)) {
-    case Qt::PermissionStatus::Undetermined:
-        // 状态未定，向用户请求权限
-        qApp->requestPermission(micPermission, this, [this](const QPermission &permission){
-            // 回调函数，处理权限请求结果
-            if (permission.status() == Qt::PermissionStatus::Granted) {
-                // 用户授予权限，可以开始录音
-                StartRecord(); // 你的录音启动函数
-            } else {
-                // 用户拒绝权限，给出提示
-                qWarning() << "Permission denied!";
-                // 提示用户需要权限，并引导他们去应用设置中手动开启
-            }
-        });
-        break;
-    case Qt::PermissionStatus::Denied:
-        // 权限已被拒绝（例如之前拒绝过），需要引导用户到设置中开启
-        qWarning() << "Permission was previously denied.";
-        // 可以显示一个对话框，指导用户如何进入应用设置页面开启权限
-        break;
-    case Qt::PermissionStatus::Granted:
-        // 权限已被授予，可以直接录音
-        StartRecord(); // 你的录音启动函数
-        break;
-    }
+    PermissionManager::instance().requestAudioRecordingPermission([this](bool granted) {
+        if (granted) {
+            qDebug() << "AudioRecording permission granted, initializing Start Camera";
+            StartRecord(); // 你的录音启动函数
+        } else {
+            qWarning() << "AudioRecording permission denied";
+            // 可以在这里显示提示信息，告知用户需要权限才能使用相机
+        }
+    });
 }
 
 void SurveyFormWidget::StartRecord()
@@ -2034,35 +2406,17 @@ void SurveyFormWidget::StopRecord()
 
 void SurveyFormWidget::initCamera()
 {
-    // 请求相机权限
-    QCameraPermission cameraPermission;
-    switch (qApp->checkPermission(cameraPermission)) {
-    case Qt::PermissionStatus::Undetermined:
-        // 状态未定，向用户请求权限
-        qApp->requestPermission(cameraPermission, this, [this](const QPermission &permission) {
-            // 回调函数，处理权限请求结果
-            if (permission.status() == Qt::PermissionStatus::Granted) {
-                // 用户授予权限，可以初始化相机
-                initializeCamera();
-            } else {
-                // 用户拒绝权限，给出提示
-                qWarning() << "Camera permission denied!";
-                m_autoCaptureEnabled = false;
-                // 提示用户需要权限，并引导他们去应用设置中手动开启
-            }
-        });
-        return;
-    case Qt::PermissionStatus::Denied:
-        // 权限已被拒绝（例如之前拒绝过），需要引导用户到设置中开启
-        qWarning() << "Camera permission was previously denied.";
-        m_autoCaptureEnabled = false;
-        // 可以显示一个对话框，指导用户如何进入应用设置页面开启权限
-        return;
-    case Qt::PermissionStatus::Granted:
-        // 权限已被授予，可以直接初始化相机
-        initializeCamera();
-        break;
-    }
+    PermissionManager::instance().requestCameraPermission([this](bool granted) {
+        if (granted) {
+            qDebug() << "Camera permission granted, initializing camera";
+            initializeCamera();
+        } else {
+            qWarning() << "Camera permission denied";
+            m_autoCaptureEnabled = false;
+            // 可以在这里显示提示信息，告知用户需要权限才能使用相机
+            // emit showMessage("无法使用相机功能，请在设置中授予相机权限");
+        }
+    });
 }
 
 void SurveyFormWidget::initializeCamera()

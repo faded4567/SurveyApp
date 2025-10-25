@@ -30,7 +30,8 @@ SOURCES += \
     ../src/surveyencrypt.cpp \
     ../src/surveyformwidget.cpp\
     ../src/dashboardwidget.cpp \
-    ../src/settingswidget.cpp
+    ../src/settingswidget.cpp \
+    ../src/permissionmanager.cpp
 
 HEADERS += \
     ../inc/CustomUI.h \
@@ -42,7 +43,8 @@ HEADERS += \
     ../inc/surveyencrypt.h \
     ../inc/surveyformwidget.h \
     ../inc/dashboardwidget.h \
-    ../inc/settingswidget.h
+    ../inc/settingswidget.h \
+    ../inc/permissionmanager.h
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
