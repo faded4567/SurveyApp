@@ -1,4 +1,4 @@
-QT       += core gui network widgets qml core-private svg quickwidgets multimedia
+QT       += core gui network widgets qml core-private svg quickwidgets multimedia location
 
 CONFIG += link_pkgconfig
 
@@ -12,6 +12,7 @@ TARGET = SurveyKingClient
 TEMPLATE = app
 
 ANDROID_PACKAGE_SOURCE_DIR = ../android
+
 
 # You can make your code fail to compile if it uses deprecated APIs.
 # In order to do so, uncomment the following line.
@@ -31,7 +32,8 @@ SOURCES += \
     ../src/surveyformwidget.cpp\
     ../src/dashboardwidget.cpp \
     ../src/settingswidget.cpp \
-    ../src/permissionmanager.cpp
+    ../src/permissionmanager.cpp \
+    ../src/locationmanager.cpp \
 
 HEADERS += \
     ../inc/CustomUI.h \
@@ -44,7 +46,8 @@ HEADERS += \
     ../inc/surveyformwidget.h \
     ../inc/dashboardwidget.h \
     ../inc/settingswidget.h \
-    ../inc/permissionmanager.h
+    ../inc/permissionmanager.h \
+    ../inc/locationmanager.h
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
@@ -60,6 +63,11 @@ message("QMAKE_HOST.arch (Host) is: $${QMAKE_HOST.arch}")
 android{
     ANDROID_PERMISSIONS += READ_EXTERNAL_STORAGE
     ANDROID_PERMISSIONS += WRITE_EXTERNAL_STORAGE
+    ANDROID_PERMISSIONS += CAMERA
+    ANDROID_PERMISSIONS += RECORD_AUDIO
+    ANDROID_PERMISSIONS += ACCESS_FINE_LOCATION
+    ANDROID_PERMISSIONS += ACCESS_COARSE_LOCATION
+
     # 定义宏
     DEFINES += USE_OPENSSL
 

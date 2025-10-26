@@ -11,6 +11,9 @@
 #include <QSettings>
 #include <QLineEdit>
 #include <QSpinBox>
+#include <QDialog>
+#include <QTextEdit>
+#include <QTabWidget>
 
 class SettingsWidget : public QWidget
 {
@@ -25,10 +28,12 @@ signals:
 private slots:
     void onSaveClicked();
     void onBackClicked();
+    void onShowChangelogClicked();
 
 private:
     void loadSettings();
     void saveSettings();
+    QDialog* createChangelogDialog();
 
     QVBoxLayout *m_mainLayout;
     QPushButton *m_backButton;
@@ -39,7 +44,9 @@ private:
     QCheckBox *m_autoCaptureCheckBox; // 添加自动拍照选项
     QLabel *m_captureIntervalLabel;
     QSpinBox *m_captureIntervalSpinBox; // 添加拍照时间间隔输入框
-
+    
+    // 更新日志按钮
+    QPushButton *m_changelogButton;
 };
 
 #endif // SETTINGSWIDGET_H

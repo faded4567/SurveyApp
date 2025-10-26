@@ -99,6 +99,7 @@ void PermissionManager::requestLocationPermission(std::function<void(bool)> call
 
 #ifdef Q_OS_ANDROID
     QLocationPermission locationPermission;
+    locationPermission.setAccuracy(QLocationPermission::Approximate);
     switch (qApp->checkPermission(locationPermission)) {
     case Qt::PermissionStatus::Undetermined:
         // 请求权限

@@ -40,6 +40,7 @@
 #include <QImageCapture>
 #include "CustomUI.h"
 #include "permissionmanager.h"
+#include "locationmanager.h"
 
 class SurveyFormWidget : public QWidget
 {
@@ -144,6 +145,7 @@ private:
     CustomStackedWidget *m_stackedWidget;
     QList<QWidget*> m_questionPages;
     QList<QJsonObject> m_questions;
+    QList<QJsonObject> m_showQuestions;
     QPushButton *m_prevButton;
     QPushButton *m_nextButton;
     QPushButton *m_submitButton;
@@ -177,6 +179,9 @@ private:
     
     // 答案存储相关
     QMap<int, QJsonObject> m_answerCache; // 存储每个题目的答案
+
+    // 位置信息题目
+    QJsonObject m_locationObj;
 };
 
 #endif // SURVEYFORMWIDGET_H

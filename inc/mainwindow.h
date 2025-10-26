@@ -10,6 +10,7 @@
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QNetworkAccessManager>
+#include "locationmanager.h"
 #include "settingswidget.h"
 
 class DashboardWidget;

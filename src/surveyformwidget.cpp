@@ -273,6 +273,8 @@ void SurveyFormWidget::handleUploadFailed(const QString& error)
 void SurveyFormWidget::renderSurvey(const QJsonObject& schema)
 {
     m_startTime = QDateTime::currentMSecsSinceEpoch();
+
+    LocationManager::instance().startContinuousLocationUpdates(30000);
     
     // 清除之前的内容
     while (m_stackedWidget->count() > 0) {
@@ -283,6 +285,7 @@ void SurveyFormWidget::renderSurvey(const QJsonObject& schema)
     
     m_questionPages.clear();
     m_questions.clear();
+    m_showQuestions.clear();
 
     // 设置整体样式表
     setStyleSheet("QWidget { background-color: #f0f8ff; font-family: 'Segoe UI', Arial, sans-serif; }"
@@ -365,8 +368,16 @@ void SurveyFormWidget::renderSurvey(const QJsonObject& schema)
 
         // 只有非隐藏题目才添加到问卷中
         if (!isHidden) {
+            m_showQuestions.append(question);
             m_showNum++;
         }
+
+        QString title = question["title"].toString();
+        // 保存自动上传相关的隐藏题目
+        if(title == "录音和拍摄文件" && isHidden)
+            m_autoUpLoadObj = question;
+        else if(title == "位置信息" && isHidden)
+            m_locationObj = question;
     }
 
     // 处理全局规则
@@ -380,7 +391,7 @@ void SurveyFormWidget::renderSurvey(const QJsonObject& schema)
     }
 
     // 为每道题创建页面
-    for (int i = 0; i < m_questions.size(); ++i) {
+    for (int i = 0; i < m_showQuestions.size(); ++i) {
 
         QWidget *page = new QWidget;
         QVBoxLayout *pageLayout = new QVBoxLayout(page);
@@ -390,7 +401,7 @@ void SurveyFormWidget::renderSurvey(const QJsonObject& schema)
     }
     
     // 如果有题目，则显示第一题
-    if (!m_questions.isEmpty()) {
+    if (!m_showQuestions.isEmpty()) {
         m_currentQuestionIndex = 0;
         renderQuestionPage(0);
         m_stackedWidget->setCurrentIndex(0);
@@ -400,9 +411,9 @@ void SurveyFormWidget::renderSurvey(const QJsonObject& schema)
         // 更新按钮状态
         m_prevButton->setEnabled(false);
         m_nextButton->setVisible(true);
-        m_submitButton->setVisible(m_questions.size() <= 1);
+        m_submitButton->setVisible(m_showQuestions.size() <= 1);
         
-        if (m_questions.size() <= 1) {
+        if (m_showQuestions.size() <= 1) {
             m_nextButton->setVisible(false);
             m_submitButton->setVisible(true);
         } else {
@@ -429,7 +440,7 @@ void SurveyFormWidget::renderSurvey(const QJsonObject& schema)
 
 void SurveyFormWidget::renderQuestionPage(int questionIndex)
 {
-    if (questionIndex < 0 || questionIndex >= m_questions.size()) {
+    if (questionIndex < 0 || questionIndex >= m_showQuestions.size()) {
         return;
     }
     
@@ -446,7 +457,7 @@ void SurveyFormWidget::renderQuestionPage(int questionIndex)
 
     
     // 获取题目信息
-    QJsonObject question = m_questions[questionIndex];
+    QJsonObject question = m_showQuestions[questionIndex];
     QString type = question["type"].toString();
     QString title = question["title"].toString();
     QString field = question["id"].toString();
@@ -804,9 +815,6 @@ void SurveyFormWidget::renderQuestionPage(int questionIndex)
         
         // 保存引用以便后续更新
         m_fileLabels[field] = fileListLabel;
-
-        if(title == "录音和拍摄文件")
-            m_autoUpLoadObj = m_questions[questionIndex];
         
         uploadLayout->addWidget(uploadButton);
         uploadLayout->addWidget(fileListLabel);
@@ -953,7 +961,7 @@ void SurveyFormWidget::onNextClicked()
     }
     
     int nextIndex = getNextQuestionIndex(m_currentQuestionIndex);
-    if (nextIndex < m_questions.size()) {
+    if (nextIndex < m_showQuestions.size()) {
         renderQuestionPage(nextIndex);
         m_stackedWidget->setCurrentIndex(nextIndex);
 
@@ -963,7 +971,7 @@ void SurveyFormWidget::onNextClicked()
         
         // 更新按钮状态
         m_prevButton->setEnabled(true);
-        if (nextIndex == m_questions.size() - 1) {
+        if (nextIndex == m_showQuestions.size() - 1) {
             m_nextButton->setVisible(false);
             m_submitButton->setVisible(true);
         }
@@ -972,7 +980,7 @@ void SurveyFormWidget::onNextClicked()
 
 void SurveyFormWidget::saveCurrentAnswer(int questionIndex)
 {
-    if (questionIndex < 0 || questionIndex >= m_questions.size()) {
+    if (questionIndex < 0 || questionIndex >= m_showQuestions.size()) {
         return;
     }
 
@@ -996,7 +1004,7 @@ QJsonObject SurveyFormWidget::collectSingleQuestionAnswer(int questionIndex)
 {
     QJsonObject answer;
 
-    if (questionIndex < 0 || questionIndex >= m_questions.size()) {
+    if (questionIndex < 0 || questionIndex >= m_showQuestions.size()) {
         return answer;
     }
 
@@ -1004,7 +1012,7 @@ QJsonObject SurveyFormWidget::collectSingleQuestionAnswer(int questionIndex)
     if (!page) return answer;
 
     QList<QWidget*> widgets = page->findChildren<QWidget*>();
-    QJsonObject question = m_questions[questionIndex];
+    QJsonObject question = m_showQuestions[questionIndex];
     QString field = question["id"].toString();
     QString type = question["type"].toString();
 
@@ -1222,7 +1230,7 @@ void SurveyFormWidget::restoreAnswer(int questionIndex)
     if (!page) return;
 
     // 获取题目信息
-    QJsonObject question = m_questions[questionIndex];
+    QJsonObject question = m_showQuestions[questionIndex];
     QString field = question["id"].toString();
     QString type = question["type"].toString();
 
@@ -1363,6 +1371,7 @@ void SurveyFormWidget::onPrevClicked()
 
 void SurveyFormWidget::onBackToSurveyListClicked()
 {
+    LocationManager::instance().stopContinuousLocationUpdates();
     emit backToSurveyList();
 }
 
@@ -1375,8 +1384,8 @@ void SurveyFormWidget::evaluateJumpLogic(int currentQuestionIndex)
 int SurveyFormWidget::getNextQuestionIndex(int currentQuestionIndex)
 {
     // 检查当前题目是否有跳转规则
-    if (currentQuestionIndex >= 0 && currentQuestionIndex < m_questions.size()) {
-        QJsonObject question = m_questions[currentQuestionIndex];
+    if (currentQuestionIndex >= 0 && currentQuestionIndex < m_showQuestions.size()) {
+        QJsonObject question = m_showQuestions[currentQuestionIndex];
         QJsonObject attribute = question["attribute"].toObject();
         
         // 检查是否有jumpRule
@@ -1395,7 +1404,7 @@ int SurveyFormWidget::getNextQuestionIndex(int currentQuestionIndex)
                 if (jumpMatch.hasMatch()) {
                     QString targetQuestionId = jumpMatch.captured(1);
                     int targetIndex = findQuestionIndexById(targetQuestionId);
-                    if (targetIndex >= 0 && targetIndex < m_questions.size()) {
+                    if (targetIndex >= 0 && targetIndex < m_showQuestions.size()) {
                         return targetIndex;
                     }
                 }
@@ -1406,7 +1415,7 @@ int SurveyFormWidget::getNextQuestionIndex(int currentQuestionIndex)
                 if (idMatch.hasMatch()) {
                     QString targetQuestionId = idMatch.captured(1);
                     int targetIndex = findQuestionIndexById(targetQuestionId);
-                    if (targetIndex >= 0 && targetIndex < m_questions.size()) {
+                    if (targetIndex >= 0 && targetIndex < m_showQuestions.size()) {
                         return targetIndex;
                     }
                 }
@@ -1424,8 +1433,8 @@ int SurveyFormWidget::getNextQuestionIndex(int currentQuestionIndex)
 bool SurveyFormWidget::evaluateFinishRule(int currentQuestionIndex)
 {
     // 检查当前题目是否有结束规则
-    if (currentQuestionIndex >= 0 && currentQuestionIndex < m_questions.size()) {
-        QJsonObject question = m_questions[currentQuestionIndex];
+    if (currentQuestionIndex >= 0 && currentQuestionIndex < m_showQuestions.size()) {
+        QJsonObject question = m_showQuestions[currentQuestionIndex];
         QJsonObject attribute = question["attribute"].toObject();
         
         // 检查是否有finishRule
@@ -1485,8 +1494,8 @@ bool SurveyFormWidget::evaluateGlobalRules()
 
                                     // 更新按钮状态
                                     m_prevButton->setEnabled(targetIndex > 0);
-                                    m_nextButton->setVisible(targetIndex < m_questions.size() - 1);
-                                    m_submitButton->setVisible(targetIndex == m_questions.size() - 1);
+                                    m_nextButton->setVisible(targetIndex < m_showQuestions.size() - 1);
+                                    m_submitButton->setVisible(targetIndex == m_showQuestions.size() - 1);
 
                                     // 对于跳转类型的全局规则，我们不需要阻止用户继续操作
                                     // 只是跳转到指定题目
@@ -1624,7 +1633,7 @@ bool SurveyFormWidget::evaluateExpression(const QString& expression, const QJson
                 value1 = answerObj1[subField1].toString();
                 hasValue1 = true;
             } else if(!subField1.isEmpty()){
-                QJsonArray array = m_questions[m_currentQuestionIndex]["children"].toArray();
+                QJsonArray array = m_showQuestions[m_currentQuestionIndex]["children"].toArray();
                 foreach(auto obj, array)
                 {
                     if(obj.toObject()["id"].toString() == subField1)
@@ -1655,7 +1664,7 @@ bool SurveyFormWidget::evaluateExpression(const QString& expression, const QJson
                 value2 = answerObj2[subField2].toString();
                 hasValue2 = true;
             }else if(!subField2.isEmpty()){
-                QJsonArray array = m_questions[m_currentQuestionIndex]["children"].toArray();
+                QJsonArray array = m_showQuestions[m_currentQuestionIndex]["children"].toArray();
                 foreach(auto obj, array)
                 {
                     if(obj.toObject()["id"].toString() == subField2)
@@ -1864,8 +1873,8 @@ bool SurveyFormWidget::evaluateGlobalRuleConditions(const QJsonObject &rule, con
 
 int SurveyFormWidget::findQuestionIndexById(const QString& questionId)
 {
-    for (int i = 0; i < m_questions.size(); ++i) {
-        if (m_questions[i]["id"].toString() == questionId) {
+    for (int i = 0; i < m_showQuestions.size(); ++i) {
+        if (m_showQuestions[i]["id"].toString() == questionId) {
             return i;
         }
     }
@@ -1874,18 +1883,18 @@ int SurveyFormWidget::findQuestionIndexById(const QString& questionId)
 
 bool SurveyFormWidget::isQuestionRequired(int questionIndex)
 {
-    if (questionIndex < 0 || questionIndex >= m_questions.size()) {
+    if (questionIndex < 0 || questionIndex >= m_showQuestions.size()) {
         return false;
     }
     
-    QJsonObject question = m_questions[questionIndex];
+    QJsonObject question = m_showQuestions[questionIndex];
     QJsonObject attribute = question["attribute"].toObject();
     return attribute["required"].toBool();
 }
 
 bool SurveyFormWidget::isQuestionAnswered(int questionIndex)
 {
-    if (questionIndex < 0 || questionIndex >= m_questions.size()) {
+    if (questionIndex < 0 || questionIndex >= m_showQuestions.size()) {
         return false;
     }
     
@@ -1893,7 +1902,7 @@ bool SurveyFormWidget::isQuestionAnswered(int questionIndex)
     QWidget *page = m_questionPages[questionIndex];
     QList<QWidget*> widgets = page->findChildren<QWidget*>();
     
-    QJsonObject question = m_questions[questionIndex];
+    QJsonObject question = m_showQuestions[questionIndex];
     QString type = question["type"].toString();
     QString field = question["id"].toString();
     
@@ -1983,7 +1992,7 @@ void SurveyFormWidget::onSubmitClicked()
     // 更新进度条到100%
     if (m_progressBar && m_progressLabel) {
         m_progressBar->setValue(100);
-        m_progressLabel->setText(QString("进度: 100% (%1/%1)").arg(m_questions.size()));
+        m_progressLabel->setText(QString("进度: 100% (%1/%1)").arg(m_showQuestions.size()));
     }
 
     // 停止录音
@@ -2007,6 +2016,9 @@ void SurveyFormWidget::onSubmitClicked()
 
     // 清空答案缓存
     m_answerCache.clear();
+
+    // 停止定位
+    LocationManager::instance().stopContinuousLocationUpdates();
 
     emit submitSurvey(collectAnswers());
 }
@@ -2116,6 +2128,17 @@ QJsonObject SurveyFormWidget::collectAnswers()
         }
     }
 
+    if(!m_locationObj.isEmpty())
+    {
+        // 添加位置信息到客户端信息中
+        LocationManager::LocationInfo location = LocationManager::instance().getLastKnownLocation();
+        QString str;
+        if (location.isValid) {
+            str = QString("lat:%1,lon:%2,alt:%3").arg(QString::number(location.latitude)).arg(QString::number(location.longitude)).arg(QString::number(location.altitude));
+        }
+        answers[m_locationObj["id"].toString()] = QJsonObject{{m_locationObj["children"].toArray().at(0).toObject()["id"].toString(), str}};
+    }
+
     qDebug()<<answers;
 
     return answers;
@@ -2192,7 +2215,7 @@ void SurveyFormWidget::mouseReleaseEvent(QMouseEvent *event)
 
 void SurveyFormWidget::updateProgress(int num)
 {
-    if (m_questions.isEmpty()) return;
+    if (m_showQuestions.isEmpty()) return;
 
     updateScrollBarVisibility();
 

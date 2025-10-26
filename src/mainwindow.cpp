@@ -411,6 +411,8 @@ void MainWindow::requestInitialPermissions()
             PermissionManager::instance().requestLocationPermission([](bool granted) {
                 if (granted) {
                     qDebug() << "Initial location permission granted";
+                    // 初始化定位服务
+                    LocationManager::instance().initialize();
                 } else {
                     qDebug() << "Initial location permission denied";
                 }

@@ -271,6 +271,16 @@ void NetworkManager::submitResponse(const QString& surveyId, const QJsonObject& 
     QJsonObject clientInfo;
     clientInfo["agent"] = "Mobile Client";
     clientInfo["remoteIp"] = getLocalIPv4Address();
+    // 添加位置信息到客户端信息中
+    LocationManager::LocationInfo location = LocationManager::instance().getLastKnownLocation();
+    if (location.isValid) {
+        QJsonObject locationInfo;
+        locationInfo["latitude"] = location.latitude;
+        locationInfo["longitude"] = location.longitude;
+        locationInfo["altitude"] = location.altitude;
+        locationInfo["accuracy"] = location.accuracy;
+        clientInfo["location"] = locationInfo;
+    }
     metaInfo["clientInfo"] = clientInfo;
 
     // Add answer info
@@ -280,6 +290,8 @@ void NetworkManager::submitResponse(const QString& surveyId, const QJsonObject& 
     answerInfo["startTime"] = QString::number(startTime);
     answerInfo["endTime"] = QString::number(endTime);
     metaInfo["answerInfo"] = answerInfo;
+
+
 
     requestData["metaInfo"] = metaInfo;
     
