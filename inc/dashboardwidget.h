@@ -27,6 +27,9 @@ public:
     void setProjects(const QJsonArray& projects);
     void setCurrentUser(const QJsonObject& user);
 
+public slots:
+    void handleApplicationStateChanged(Qt::ApplicationState state); // 添加应用程序状态变化处理函数
+
 signals:
     void surveySelected(const QString& surveyId);
     void projectSelected(const QString& projectId, const QString& title);
@@ -36,6 +39,7 @@ signals:
 protected:
     bool event(QEvent *event) override;
     bool gestureEvent(QGestureEvent *event);
+    void showEvent(QShowEvent *event) override; // 添加showEvent处理函数
 
 private slots:
     void onProjectItemClicked(QListWidgetItem *item);
@@ -49,6 +53,7 @@ private:
     void setupConnections();
     void loadSurveyList();
     void loadProjectList();
+    void resetLayoutOnAppResume(); // 添加重置布局的函数
 
     QTabWidget *m_tabWidget;
     RefreshableListWidget *m_projectListWidget;
@@ -71,9 +76,9 @@ private:
     // Data
     QJsonArray m_projects;
     QJsonObject m_currentUser;
-
-
-
+    
+    // 添加应用状态追踪变量
+    bool m_isResumingFromBackground = false; // 标记是否从后台恢复
 };
 
 #endif // DASHBOARDWIDGET_H

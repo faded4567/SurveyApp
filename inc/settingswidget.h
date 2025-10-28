@@ -15,6 +15,23 @@
 #include <QTextEdit>
 #include <QTabWidget>
 
+// 自定义对话框类，用于显示更新日志
+class ChangelogDialog : public QDialog
+{
+    Q_OBJECT
+
+public:
+    explicit ChangelogDialog(QWidget *parent = nullptr);
+
+protected:
+    void mousePressEvent(QMouseEvent *event) override;
+    void resizeEvent(QResizeEvent *event) override;
+
+private:
+    void centerOnScreen();
+    QWidget *m_contentWidget;
+};
+
 class SettingsWidget : public QWidget
 {
     Q_OBJECT
@@ -33,7 +50,7 @@ private slots:
 private:
     void loadSettings();
     void saveSettings();
-    QDialog* createChangelogDialog();
+    ChangelogDialog* createChangelogDialog();
 
     QVBoxLayout *m_mainLayout;
     QPushButton *m_backButton;

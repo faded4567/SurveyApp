@@ -14,6 +14,7 @@ NetworkManager::NetworkManager(QObject* parent) : QObject(parent)
 {
     m_networkManager = new QNetworkAccessManager(this);
     connect(m_networkManager, &QNetworkAccessManager::finished, this, &NetworkManager::onReplyFinished);
+    // 连接错误信号
 }
 
 void NetworkManager::setAuthToken(const QString& token)
@@ -53,6 +54,7 @@ QNetworkRequest NetworkManager::createRequest(const QString& endpoint)
 
 void NetworkManager::uploadFile(const QString& projectId, const QString& questionId, const QString& filePath)
 {
+    FUNCTION_LOG();
     QFile* file = new QFile(filePath);
     if (!file->open(QIODevice::ReadOnly)) {
         emit fileUploadFailed("无法打开文件");
@@ -134,12 +136,15 @@ void NetworkManager::uploadFile(const QString& projectId, const QString& questio
     if (!m_authToken.isEmpty()) {
         request.setRawHeader("Authorization", QString("Bearer %1").arg(m_authToken).toUtf8());
     }
-    
+    // LogFileManager::instance().logNetworkRequest("/public/upload", );
     m_networkManager->post(request, multiPart);
 }
 
 void NetworkManager::handleFileUploadFinished(QNetworkReply* reply, QJsonObject jsonObj)
 {
+    FUNCTION_LOG();
+    LogFileManager::instance().logNetworkResponse("/public/upload", jsonObj.value("code").toInt(0), jsonObj);
+
     if (jsonObj.value("code").toInt(0) == 200 || !jsonObj.contains("error")) {
         // 成功上传
         emit fileUploadSuccess(jsonObj);
@@ -150,12 +155,16 @@ void NetworkManager::handleFileUploadFinished(QNetworkReply* reply, QJsonObject 
         if (jsonObj.contains("message")) {
             errorMsg = jsonObj["message"].toString();
         }
+        LogFileManager::instance().logError("UploadError", errorMsg);
         emit networkError(errorMsg);
     }
 }
 
 void NetworkManager::handleCurrentUser(QNetworkReply *reply, QJsonObject jsonObj)
 {
+    FUNCTION_LOG();
+    LogFileManager::instance().logNetworkResponse("/currentUser", jsonObj.value("code").toInt(0), jsonObj);
+
     if (jsonObj.value("code").toInt(0) == 200 || !jsonObj.contains("error")) {
         // 解析并保存当前用户名
         if (jsonObj.contains("data") && jsonObj["data"].toObject().contains("name")) {
@@ -169,12 +178,16 @@ void NetworkManager::handleCurrentUser(QNetworkReply *reply, QJsonObject jsonObj
         if (jsonObj.contains("message")) {
             errorMsg = jsonObj["message"].toString();
         }
+        LogFileManager::instance().logError("GetUserError", errorMsg);
         emit networkError(errorMsg);
     }
 }
 
 void NetworkManager::handleSystemInfo(QNetworkReply *reply, QJsonObject jsonObj)
 {
+    FUNCTION_LOG();
+    LogFileManager::instance().logNetworkResponse("/system", jsonObj.value("code").toInt(0), jsonObj);
+
     if (jsonObj.value("code").toInt(0) == 200 || !jsonObj.contains("error")) {
         m_encryptInfo = jsonObj["data"].toObject();
         qDebug()<<"get server public key"<<m_encryptInfo["publicKey"].toString();
@@ -185,17 +198,21 @@ void NetworkManager::handleSystemInfo(QNetworkReply *reply, QJsonObject jsonObj)
         if (jsonObj.contains("message")) {
             errorMsg = jsonObj["message"].toString();
         }
+        LogFileManager::instance().logError("SystemInfoError", errorMsg);
         emit networkError(errorMsg);
     }
 }
 
 void NetworkManager::login(const QString& username, const QString& password)
 {
+    FUNCTION_LOG();
     QNetworkRequest request = createRequest("/public/login");
 
     QJsonObject jsonData;
     jsonData["username"] = username;
     jsonData["password"] = SurveyEncrypt::GetRSAPassword(password, m_encryptInfo["publicKey"].toString());
+
+    LogFileManager::instance().logNetworkRequest("/public/login", jsonData);
 
     QByteArray postData = QJsonDocument(jsonData).toJson();
     m_networkManager->post(request, postData);
@@ -203,11 +220,14 @@ void NetworkManager::login(const QString& username, const QString& password)
 
 void NetworkManager::registerUser(const QString& username, const QString& password)
 {
+    FUNCTION_LOG();
     QNetworkRequest request = createRequest("/public/register");
 
     QJsonObject jsonData;
     jsonData["username"] = username;
     jsonData["password"] = password;
+
+    LogFileManager::instance().logNetworkRequest("/public/register", jsonData);
 
     QByteArray postData = QJsonDocument(jsonData).toJson();
     m_networkManager->post(request, postData);
@@ -215,7 +235,10 @@ void NetworkManager::registerUser(const QString& username, const QString& passwo
 
 void NetworkManager::getSurveyList(int pageSize, int curPage)
 {
+    FUNCTION_LOG();
     QString endpoint = QString("/project/list?pageSize=%1&curPage=%2").arg(pageSize).arg(curPage);
+
+    LogFileManager::instance().logNetworkRequest(endpoint, QJsonObject());
 
     QNetworkRequest request = createRequest(endpoint);
     m_networkManager->get(request);
@@ -223,6 +246,7 @@ void NetworkManager::getSurveyList(int pageSize, int curPage)
 
 void NetworkManager::getSurveySchema(const QString& surveyId)
 {
+    FUNCTION_LOG();
     QNetworkRequest request = createRequest("/public/loadProject");
     
     QJsonObject requestData;
@@ -257,6 +281,7 @@ QString NetworkManager::getLocalIPv4Address() {
 
 void NetworkManager::submitResponse(const QString& surveyId, const QJsonObject& data, qint64 diffTime)
 {
+    FUNCTION_LOG();
     QNetworkRequest request = createRequest("/public/saveAnswer");
     
     QJsonObject requestData;
@@ -291,34 +316,40 @@ void NetworkManager::submitResponse(const QString& surveyId, const QJsonObject& 
     answerInfo["endTime"] = QString::number(endTime);
     metaInfo["answerInfo"] = answerInfo;
 
-
-
     requestData["metaInfo"] = metaInfo;
-    
+
+    LogFileManager::instance().logNetworkRequest("/public/saveAnswer", requestData);
+
     QByteArray postData = QJsonDocument(requestData).toJson();
     m_networkManager->post(request, postData);
 }
 
 void NetworkManager::getCurrentUser()
 {
+    FUNCTION_LOG();
     QNetworkRequest request = createRequest("/currentUser");
     m_networkManager->get(request);
 }
 
 void NetworkManager::getProjectList()
 {
+    FUNCTION_LOG();
     QNetworkRequest request = createRequest("/project/list");
     m_networkManager->get(request);
 }
 
 void NetworkManager::onRefreshCaptcha()
 {
+    FUNCTION_LOG();
     // SurveyKing does not use captcha, keeping empty implementation
 }
 
 void NetworkManager::onReplyFinished(QNetworkReply* reply)
 {
+    FUNCTION_LOG();
     if (reply->error() != QNetworkReply::NoError) {
+        QString errorStr = reply->errorString();
+        LogFileManager::instance().logError("NetworkError", errorStr, "Error code: " + QString::number(reply->error()));
         emit networkError(reply->errorString());
         reply->deleteLater();
         return;
@@ -353,6 +384,8 @@ void NetworkManager::onReplyFinished(QNetworkReply* reply)
 
 void NetworkManager::handleLoginResponse(QNetworkReply* reply, QJsonObject jsonObj)
 {
+    FUNCTION_LOG();
+    LogFileManager::instance().logNetworkResponse("/public/login", jsonObj.value("code").toInt(0), jsonObj);
     // Check if Authorization header is present
     if (reply->hasRawHeader("Authorization")) {
         QString token = reply->rawHeader("Authorization");
@@ -365,6 +398,7 @@ void NetworkManager::handleLoginResponse(QNetworkReply* reply, QJsonObject jsonO
 
         // 获取当前用户权限
         getCurrentUser();
+
     } else {
         QString errorMsg = "Login failed";
         if (jsonObj.contains("message")) {
@@ -372,12 +406,14 @@ void NetworkManager::handleLoginResponse(QNetworkReply* reply, QJsonObject jsonO
         } else if (jsonObj.contains("errorMsg")) {
             errorMsg = jsonObj["errorMsg"].toString();
         }
+        LogFileManager::instance().logError("LoginError", errorMsg);
         emit loginFailed(errorMsg);
     }
 }
 
 void NetworkManager::handleRegisterResponse(QNetworkReply* reply, QJsonObject jsonObj)
 {
+    FUNCTION_LOG();
     // For SurveyKing, assume success on 200 response
     emit registerSuccess(jsonObj);
 }
@@ -385,6 +421,8 @@ void NetworkManager::handleRegisterResponse(QNetworkReply* reply, QJsonObject js
 
 void NetworkManager::handleProjectListResponse(QJsonObject jsonObj)
 {
+    FUNCTION_LOG();
+    LogFileManager::instance().logNetworkResponse("/project/list", jsonObj.value("code").toInt(0), jsonObj);
     if (jsonObj.value("code").toInt(0) == 200 || !jsonObj.contains("error")) {
         QJsonArray list = jsonObj["data"].toObject()["list"].toArray();
         emit projectListReceived(list);
@@ -399,6 +437,9 @@ void NetworkManager::handleProjectListResponse(QJsonObject jsonObj)
 
 void NetworkManager::handleSurveySchemaResponse(QJsonObject jsonObj)
 {
+    FUNCTION_LOG();
+    LogFileManager::instance().logNetworkResponse("/public/loadProject", jsonObj.value("code").toInt(0), jsonObj);
+
     // SurveyKing returns the full project info directly
     // Check if the response contains data field
     if (jsonObj.contains("data")) {
@@ -407,10 +448,13 @@ void NetworkManager::handleSurveySchemaResponse(QJsonObject jsonObj)
     } else {
         emit surveySchemaReceived(jsonObj);
     }
+
 }
 
 void NetworkManager::handleSubmitResponse(QNetworkReply* reply, QJsonObject jsonObj)
 {
+    FUNCTION_LOG();
+    LogFileManager::instance().logNetworkResponse("/public/saveAnswer", jsonObj.value("code").toInt(0), jsonObj);
     if (jsonObj.value("code").toInt(0) == 200 || !jsonObj.contains("error")) {
         emit submitSuccess();
     } else {
@@ -420,6 +464,9 @@ void NetworkManager::handleSubmitResponse(QNetworkReply* reply, QJsonObject json
         } else if (jsonObj.contains("errorMsg")) {
             errorMsg = jsonObj["errorMsg"].toString();
         }
+        LogFileManager::instance().logError("SubmitError", errorMsg);
+
         emit submitFailed(errorMsg);
+
     }
 }

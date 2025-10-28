@@ -22,9 +22,12 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
+#include <QApplication>
 
 DashboardWidget::DashboardWidget(QWidget *parent) : QWidget(parent)
 {
+    m_isResumingFromBackground = false;
+    
     // 设置整体样式表
     setStyleSheet("QWidget { background-color: #f0f8ff; font-family: 'Segoe UI', Arial, sans-serif; }"
                   "QLabel { color: #333333; }"
@@ -79,6 +82,10 @@ DashboardWidget::DashboardWidget(QWidget *parent) : QWidget(parent)
 
     setupMyProfileTab();
     setupConnections(); // 确保连接信号槽
+    
+    // 连接应用程序状态变化信号
+    connect(qApp, &QApplication::applicationStateChanged, 
+            this, &DashboardWidget::handleApplicationStateChanged);
 }
 
 void DashboardWidget::setupMyProfileTab()
@@ -245,4 +252,55 @@ bool DashboardWidget::gestureEvent(QGestureEvent *event)
         return true;
     }
     return false;
+}
+
+void DashboardWidget::handleApplicationStateChanged(Qt::ApplicationState state)
+{
+    if (state == Qt::ApplicationActive) {
+        // 当应用变为活跃状态时，标记为从后台恢复
+        m_isResumingFromBackground = true;
+        // 使用单次定时器来重置布局，确保在事件循环之后执行
+        QTimer::singleShot(100, this, &DashboardWidget::resetLayoutOnAppResume);
+    }
+}
+
+void DashboardWidget::resetLayoutOnAppResume()
+{
+    if (!m_isResumingFromBackground) {
+        return;
+    }
+    
+    // 强制更新布局
+    m_tabWidget->updateGeometry();
+    m_tabWidget->update();
+    
+    if (m_projectListWidget) {
+        m_projectListWidget->updateGeometry();
+        m_projectListWidget->update();
+    }
+    
+    if (m_settingsWidget) {
+        m_settingsWidget->updateGeometry();
+        m_settingsWidget->update();
+    }
+    
+    if (m_myProfileWidget) {
+        m_myProfileWidget->updateGeometry();
+        m_myProfileWidget->update();
+    }
+    
+    update();
+    
+    // 重置标志
+    m_isResumingFromBackground = false;
+}
+
+void DashboardWidget::showEvent(QShowEvent *event)
+{
+    // 当widget显示时，如果是从后台恢复，则重置布局
+    if (m_isResumingFromBackground) {
+        QTimer::singleShot(50, this, &DashboardWidget::resetLayoutOnAppResume);
+    }
+    
+    QWidget::showEvent(event);
 }

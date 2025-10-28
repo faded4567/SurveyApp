@@ -41,6 +41,7 @@
 #include "CustomUI.h"
 #include "permissionmanager.h"
 #include "locationmanager.h"
+#include "functionlogger.h"
 
 class SurveyFormWidget : public QWidget
 {

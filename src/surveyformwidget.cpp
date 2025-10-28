@@ -30,6 +30,7 @@
 
 SurveyFormWidget::SurveyFormWidget(QWidget *parent) : QWidget(parent)
 {
+    FUNCTION_LOG();
     m_stackedWidget = new CustomStackedWidget(this);
     m_currentQuestionIndex = 0;
     
@@ -160,6 +161,7 @@ SurveyFormWidget::SurveyFormWidget(QWidget *parent) : QWidget(parent)
 
 void SurveyFormWidget::handleUploadButton(QPushButton* uploadButton, const QString& field)
 {
+    FUNCTION_LOG();
     // 打开文件选择对话框，支持图片和视频
     QString filter = "Images (*.png *.jpg *.jpeg *.gif *.bmp);;Videos (*.mp4 *.mov *.wmv *.avi *.mkv);;All Files (*.*)";
     QString filePath = QFileDialog::getOpenFileName(this, "选择文件", "", filter);
@@ -185,6 +187,7 @@ void SurveyFormWidget::handleUploadButton(QPushButton* uploadButton, const QStri
 
 void SurveyFormWidget::setSurveySchema(const QJsonObject& schema)
 {
+    FUNCTION_LOG();
     m_schema = schema;
     renderSurvey(schema);
 
@@ -193,6 +196,7 @@ void SurveyFormWidget::setSurveySchema(const QJsonObject& schema)
 
 void SurveyFormWidget::handleUploadSuccsee(const QJsonObject &response)
 {
+    FUNCTION_LOG();
     qDebug()<<"handleUploadSuccsee.....";
     QString field,subField;
     QString fileName = response["data"].toObject()["originalName"].toString();
@@ -254,6 +258,7 @@ void SurveyFormWidget::handleUploadSuccsee(const QJsonObject &response)
 
 void SurveyFormWidget::handleUploadFailed(const QString& error)
 {
+    FUNCTION_LOG();
     QMessageBox::warning(this, "上传失败", "文件上传失败: " + error);
     // 减少待上传计数
     m_pendingUploads--;
@@ -272,6 +277,7 @@ void SurveyFormWidget::handleUploadFailed(const QString& error)
 
 void SurveyFormWidget::renderSurvey(const QJsonObject& schema)
 {
+    FUNCTION_LOG();
     m_startTime = QDateTime::currentMSecsSinceEpoch();
 
     LocationManager::instance().startContinuousLocationUpdates(30000);
@@ -440,6 +446,7 @@ void SurveyFormWidget::renderSurvey(const QJsonObject& schema)
 
 void SurveyFormWidget::renderQuestionPage(int questionIndex)
 {
+    FUNCTION_LOG();
     if (questionIndex < 0 || questionIndex >= m_showQuestions.size()) {
         return;
     }
@@ -938,6 +945,7 @@ void SurveyFormWidget::renderQuestionPage(int questionIndex)
 
 void SurveyFormWidget::onNextClicked()
 {
+    FUNCTION_LOG();
     // 保存当前题目的答案
     saveCurrentAnswer(m_currentQuestionIndex);
 
@@ -980,6 +988,7 @@ void SurveyFormWidget::onNextClicked()
 
 void SurveyFormWidget::saveCurrentAnswer(int questionIndex)
 {
+    FUNCTION_LOG();
     if (questionIndex < 0 || questionIndex >= m_showQuestions.size()) {
         return;
     }
@@ -990,6 +999,7 @@ void SurveyFormWidget::saveCurrentAnswer(int questionIndex)
 
 QString SurveyFormWidget::getAnswerValue(const QJsonObject& savedAnswer, const QString& field)
 {
+    FUNCTION_LOG();
     if (savedAnswer.contains(field)) {
         QJsonObject fieldObj = savedAnswer[field].toObject();
         if (!fieldObj.isEmpty()) {
@@ -1002,6 +1012,7 @@ QString SurveyFormWidget::getAnswerValue(const QJsonObject& savedAnswer, const Q
 
 QJsonObject SurveyFormWidget::collectSingleQuestionAnswer(int questionIndex)
 {
+    FUNCTION_LOG();
     QJsonObject answer;
 
     if (questionIndex < 0 || questionIndex >= m_showQuestions.size()) {
@@ -1135,6 +1146,7 @@ QJsonObject SurveyFormWidget::collectSingleQuestionAnswer(int questionIndex)
 
 void SurveyFormWidget::processOptionsWithBlankInputs(QWidget* page, const QString& field, QJsonObject& answer)
 {
+    FUNCTION_LOG();
     // 处理单选按钮中的填空输入框
     QList<QRadioButton*> radioButtons = page->findChildren<QRadioButton*>();
     for (QRadioButton* radioButton : radioButtons) {
@@ -1195,6 +1207,7 @@ void SurveyFormWidget::processOptionsWithBlankInputs(QWidget* page, const QStrin
 
 QLineEdit* SurveyFormWidget::findAssociatedLineEdit(QWidget* optionWidget)
 {
+    FUNCTION_LOG();
     // 在同一个布局中查找关联的输入框
     QLayout* parentLayout = optionWidget->parentWidget()->layout();
     if (!parentLayout) return nullptr;
@@ -1216,6 +1229,7 @@ QLineEdit* SurveyFormWidget::findAssociatedLineEdit(QWidget* optionWidget)
 
 void SurveyFormWidget::restoreAnswer(int questionIndex)
 {
+    FUNCTION_LOG();
     if (!m_answerCache.contains(questionIndex)) {
         return;
     }
@@ -1347,6 +1361,7 @@ void SurveyFormWidget::restoreAnswer(int questionIndex)
 
 void SurveyFormWidget::onPrevClicked()
 {
+    FUNCTION_LOG();
     // 保存当前题目的答案
     saveCurrentAnswer(m_currentQuestionIndex);
 
@@ -1371,6 +1386,7 @@ void SurveyFormWidget::onPrevClicked()
 
 void SurveyFormWidget::onBackToSurveyListClicked()
 {
+    FUNCTION_LOG();
     LocationManager::instance().stopContinuousLocationUpdates();
     emit backToSurveyList();
 }
@@ -1383,6 +1399,7 @@ void SurveyFormWidget::evaluateJumpLogic(int currentQuestionIndex)
 
 int SurveyFormWidget::getNextQuestionIndex(int currentQuestionIndex)
 {
+    FUNCTION_LOG();
     // 检查当前题目是否有跳转规则
     if (currentQuestionIndex >= 0 && currentQuestionIndex < m_showQuestions.size()) {
         QJsonObject question = m_showQuestions[currentQuestionIndex];
@@ -1432,6 +1449,7 @@ int SurveyFormWidget::getNextQuestionIndex(int currentQuestionIndex)
 
 bool SurveyFormWidget::evaluateFinishRule(int currentQuestionIndex)
 {
+    FUNCTION_LOG();
     // 检查当前题目是否有结束规则
     if (currentQuestionIndex >= 0 && currentQuestionIndex < m_showQuestions.size()) {
         QJsonObject question = m_showQuestions[currentQuestionIndex];
@@ -1454,6 +1472,7 @@ bool SurveyFormWidget::evaluateFinishRule(int currentQuestionIndex)
 
 bool SurveyFormWidget::evaluateGlobalRules()
 {
+    FUNCTION_LOG();
     // 获取问卷属性中的全局规则
     QJsonObject survey = m_schema["survey"].toObject();
     QJsonObject surveyAttribute = survey["attribute"].toObject();
@@ -1533,6 +1552,7 @@ void SurveyFormWidget::handleRecorderError()
 
 void SurveyFormWidget::capturePhoto()
 {
+    FUNCTION_LOG();
     if (!m_camera->isActive()) {
         qWarning() << "摄像头未激活，无法拍照";
         m_captureTimer->stop();
@@ -1588,6 +1608,7 @@ void SurveyFormWidget::capturePhoto()
 
 void SurveyFormWidget::onCameraActiveChanged()
 {
+    FUNCTION_LOG();
     if (m_camera->isActive()) {
         qDebug() << "摄像头已激活";
     } else {
@@ -1597,6 +1618,7 @@ void SurveyFormWidget::onCameraActiveChanged()
 
 bool SurveyFormWidget::evaluateExpression(const QString& expression, const QJsonObject& answers)
 {
+    FUNCTION_LOG();
     // 这是一个简化的表达式计算器实现
     // 实际项目中应该实现一个完整的表达式解析器
     
@@ -1826,6 +1848,7 @@ bool SurveyFormWidget::evaluateExpression(const QString& expression, const QJson
 
 bool SurveyFormWidget::evaluateGlobalRuleConditions(const QJsonObject &rule, const QJsonObject &currentAnswers)
 {
+    FUNCTION_LOG();
     QJsonArray conditionItems = rule["conditionItem"].toArray();
     QString conditionLogic = rule["conditionLogic"].toString("AND");
 
@@ -1873,6 +1896,7 @@ bool SurveyFormWidget::evaluateGlobalRuleConditions(const QJsonObject &rule, con
 
 int SurveyFormWidget::findQuestionIndexById(const QString& questionId)
 {
+    FUNCTION_LOG();
     for (int i = 0; i < m_showQuestions.size(); ++i) {
         if (m_showQuestions[i]["id"].toString() == questionId) {
             return i;
@@ -1883,6 +1907,7 @@ int SurveyFormWidget::findQuestionIndexById(const QString& questionId)
 
 bool SurveyFormWidget::isQuestionRequired(int questionIndex)
 {
+    FUNCTION_LOG();
     if (questionIndex < 0 || questionIndex >= m_showQuestions.size()) {
         return false;
     }
@@ -1894,6 +1919,7 @@ bool SurveyFormWidget::isQuestionRequired(int questionIndex)
 
 bool SurveyFormWidget::isQuestionAnswered(int questionIndex)
 {
+    FUNCTION_LOG();
     if (questionIndex < 0 || questionIndex >= m_showQuestions.size()) {
         return false;
     }
@@ -1981,6 +2007,7 @@ bool SurveyFormWidget::isQuestionAnswered(int questionIndex)
 
 void SurveyFormWidget::onSubmitClicked()
 {
+    FUNCTION_LOG();
     // 检查最后一题是否为必填题但未回答
     if (isQuestionRequired(m_currentQuestionIndex) && !isQuestionAnswered(m_currentQuestionIndex)) {
         QMessageBox::warning(this, "提示", "这是必填题，请完成作答后再提交");
@@ -2010,7 +2037,7 @@ void SurveyFormWidget::onSubmitClicked()
     // 如果有文件正在上传，则等待上传完成后再提交
     if (m_isUploading) {
         m_shouldSubmitAfterUpload = true;
-        QMessageBox::information(this, "正在上传", "文件正在上传中，请稍候...");
+        // QMessageBox::information(this, "正在上传", "文件正在上传中，请稍候...");
         return;
     }
 
@@ -2025,6 +2052,7 @@ void SurveyFormWidget::onSubmitClicked()
 
 QJsonObject SurveyFormWidget::collectAnswers()
 {
+    FUNCTION_LOG();
     QJsonObject answers;
 
     // 遍历所有题目页面收集答案
@@ -2146,6 +2174,7 @@ QJsonObject SurveyFormWidget::collectAnswers()
 
 bool SurveyFormWidget::event(QEvent *event)
 {
+
     if (event->type() == QEvent::Gesture) {
         return gestureEvent(static_cast<QGestureEvent*>(event));
     }
@@ -2215,6 +2244,7 @@ void SurveyFormWidget::mouseReleaseEvent(QMouseEvent *event)
 
 void SurveyFormWidget::updateProgress(int num)
 {
+    FUNCTION_LOG();
     if (m_showQuestions.isEmpty()) return;
 
     updateScrollBarVisibility();
@@ -2314,6 +2344,7 @@ void SurveyFormWidget::adjustScrollBarRange(int pageHeight)
 
 void SurveyFormWidget::AddFile(QString id, QString path)
 {
+    FUNCTION_LOG();
     QJsonObject obj;
     obj[id] = path;
     m_selectedFiles.append(obj);
@@ -2321,6 +2352,7 @@ void SurveyFormWidget::AddFile(QString id, QString path)
 
 void SurveyFormWidget::requestAudioPermission()
 {
+    FUNCTION_LOG();
     PermissionManager::instance().requestAudioRecordingPermission([this](bool granted) {
         if (granted) {
             qDebug() << "AudioRecording permission granted, initializing Start Camera";
@@ -2334,6 +2366,7 @@ void SurveyFormWidget::requestAudioPermission()
 
 void SurveyFormWidget::StartRecord()
 {
+    FUNCTION_LOG();
     // 检查录音设备是否可用
     if (!mediaRecorder || !audioInput) {
         qWarning() << "录音设备未正确初始化";
@@ -2378,6 +2411,7 @@ void SurveyFormWidget::StartRecord()
 
 void SurveyFormWidget::StopRecord()
 {
+    FUNCTION_LOG();
     // 确保正在录制
     if (mediaRecorder->recorderState() != QMediaRecorder::RecordingState) {
         qWarning() << "StopRecord: 录音器未处于录制状态, 当前状态:" << mediaRecorder->recorderState();
@@ -2429,6 +2463,7 @@ void SurveyFormWidget::StopRecord()
 
 void SurveyFormWidget::initCamera()
 {
+    FUNCTION_LOG();
     PermissionManager::instance().requestCameraPermission([this](bool granted) {
         if (granted) {
             qDebug() << "Camera permission granted, initializing camera";
@@ -2444,6 +2479,7 @@ void SurveyFormWidget::initCamera()
 
 void SurveyFormWidget::initializeCamera()
 {
+    FUNCTION_LOG();
     // 检查是否有可用的摄像头
     if (QMediaDevices::videoInputs().isEmpty()) {
         qWarning() << "没有找到可用的摄像头设备";
@@ -2465,6 +2501,7 @@ void SurveyFormWidget::initializeCamera()
 
 void SurveyFormWidget::startAutoCapture()
 {
+    FUNCTION_LOG();
     if (!m_autoCaptureEnabled) {
         return;
     }
@@ -2490,6 +2527,7 @@ void SurveyFormWidget::startAutoCapture()
 
 void SurveyFormWidget::stopAutoCapture()
 {
+    FUNCTION_LOG();
     if (m_captureTimer->isActive()) {
         m_captureTimer->stop();
     }

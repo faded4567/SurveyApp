@@ -34,8 +34,8 @@ static const QString APP_NAME = "SurveyKing客户端";
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
 {
-    InitLog();
     requestInitialPermissions();
+    InitLog();
     setupUi();
     setupConnections();
     
@@ -77,7 +77,8 @@ MainWindow::MainWindow(QWidget *parent)
 
 MainWindow::~MainWindow()
 {
-
+    FUNCTION_LOG();
+    LogFileManager::instance().logApplicationClose();
 }
 
 void MainWindow::setupUi()
@@ -125,11 +126,13 @@ void MainWindow::setupUi()
     // 连接网络管理器的信号
     connect(&nm, &NetworkManager::loginFailed, [this](const QString& error) {
         QMessageBox::warning(this, "登录失败", error);
+        LogFileManager::instance().logError("LoginError", error);
     });
 
     connect(&nm, &NetworkManager::registerSuccess, this, &MainWindow::onLoginSuccess);
     connect(&nm, &NetworkManager::registerFailed, [this](const QString& error) {
         QMessageBox::warning(this, "注册失败", error);
+        LogFileManager::instance().logError("LoginError", error);
     });
 
     connect(&nm, &NetworkManager::surveySchemaReceived, this, &MainWindow::onSurveySchemaReceived);
@@ -157,6 +160,7 @@ void MainWindow::setupUi()
 
 void MainWindow::setupConnections()
 {
+    FUNCTION_LOG();
     connect(m_loginDialog, &LoginDialog::loginRequested, this, &MainWindow::onLoginRequested);
     connect(m_loginDialog, &LoginDialog::registerRequested, this, &MainWindow::onRegisterRequested);
     
@@ -170,6 +174,7 @@ void MainWindow::setupConnections()
 
 void MainWindow::showLoginDialog()
 {
+    FUNCTION_LOG();
     m_stackedWidget->addWidget(m_loginDialog);
     m_stackedWidget->setCurrentWidget(m_loginDialog);
     statusBar()->showMessage("请登录");
@@ -179,6 +184,7 @@ void MainWindow::showLoginDialog()
 
 void MainWindow::showDashboard()
 {
+    FUNCTION_LOG();
     m_stackedWidget->addWidget(m_dashboardWidget);
     m_stackedWidget->setCurrentWidget(m_dashboardWidget);
     
@@ -192,30 +198,35 @@ void MainWindow::showDashboard()
 
 void MainWindow::onLoginRequested(const QString& username, const QString& password)
 {
+    FUNCTION_LOG();
     emit Signallogin(username, password);
     statusBar()->showMessage("正在登录...");
 }
 
 void MainWindow::onRegisterRequested(const QString& username, const QString& password)
 {
+    FUNCTION_LOG();
     emit SignalregisterUser(username, password);
     statusBar()->showMessage("正在注册...");
 }
 
 void MainWindow::onLoginSuccess(const QJsonObject& userInfo)
 {
+    FUNCTION_LOG();
     m_currentUser = userInfo;
     showDashboard();
 }
 
 void MainWindow::onProjectListReceived(const QJsonArray& projects)
 {
+    FUNCTION_LOG();
     m_dashboardWidget->setProjects(projects);
     statusBar()->showMessage(QString("已加载 %1 个项目").arg(projects.size()));
 }
 
 void MainWindow::onSurveySelected(const QString& surveyId, const QString& title)
 {
+    FUNCTION_LOG();
     m_currentSurveyId = surveyId;
     m_currentSurveyTitle = title;
 
@@ -248,6 +259,7 @@ void MainWindow::onSurveySelected(const QString& surveyId, const QString& title)
 
 void MainWindow::onSurveySchemaReceived(const QJsonObject& schema)
 {
+    FUNCTION_LOG();
     if (m_surveyFormWidget) {
         m_surveyFormWidget->setSurveySchema(schema);
         statusBar()->showMessage(QString("正在填写问卷: %1").arg(m_currentSurveyTitle));
@@ -256,12 +268,14 @@ void MainWindow::onSurveySchemaReceived(const QJsonObject& schema)
 
 void MainWindow::onSubmitResponse(const QJsonObject& data)
 {
+    FUNCTION_LOG();
     emit SignalsubmitResponse(m_currentSurveyId, data, m_surveyFormWidget->GetDiffTime());
     statusBar()->showMessage("正在提交问卷...");
 }
 
 void MainWindow::onSubmitSuccess()
 {
+    FUNCTION_LOG();
     // 创建一个无按钮的提示对话框
     QMessageBox *msgBox = new QMessageBox(this);
     msgBox->setWindowTitle("提交成功");
@@ -281,22 +295,29 @@ void MainWindow::onSubmitSuccess()
         m_stackedWidget->setCurrentWidget(m_dashboardWidget);
         statusBar()->showMessage("问卷提交成功！");
     });
+    LogFileManager::instance().logUserAction("Submit", "Submit success");
+
 }
 
 void MainWindow::onSubmitFailed(const QString& error)
 {
+    FUNCTION_LOG();
     QMessageBox::warning(this, "提交失败", error);
     statusBar()->showMessage("问卷提交失败");
+    LogFileManager::instance().logError("SubmitError", error);
 }
 
 void MainWindow::onNetworkError(const QString& error)
 {
+    FUNCTION_LOG();
     QMessageBox::warning(this, "网络错误", error);
     statusBar()->showMessage("网络连接错误");
+    LogFileManager::instance().logError("NetworkError", error);
 }
 
 void MainWindow::onLogout()
 {
+    FUNCTION_LOG();
     // 清除认证信息
     emit SignalSetAuth("");
 
@@ -309,34 +330,9 @@ void MainWindow::onLogout()
 
 void MainWindow::InitLog()
 {
-
-    // QString requiredPermissions;
-    // requiredPermissions = "android.permission.READ_EXTERNAL_STORAGE";
-    // auto future = QtAndroidPrivate::requestPermission(requiredPermissions);
-    // QFutureWatcher<QtAndroidPrivate::PermissionResult> *watcher = new QFutureWatcher<QtAndroidPrivate::PermissionResult>();
-    // connect(watcher, &QFutureWatcher<QtAndroidPrivate::PermissionResult>::finished, this, [this, watcher]() {
-    //     QtAndroidPrivate::PermissionResult result = watcher->result();
-    //     if (result == QtAndroidPrivate::Authorized) {
-    //         // 权限被授予
-    //         qDebug() << "Storage permission granted";
-    //         // ... 执行需要权限的操作，例如初始化你的日志模块 ...
-    //         // 初始化日志系统
-    //         LogFileManager::instance().init();
-    //         // 设置日志文件最大为5MB，保留30天
-    //         LogFileManager::instance().setMaxSize(5 * 1024 * 1024);
-    //         LogFileManager::instance().setMaxDays(30);
-
-    //         qDebug() << "Application started";
-    //         qInfo() << "This is an info message";
-    //         qWarning() << "This is a warning message";
-    //     } else {
-    //         // 权限被拒绝
-    //         qWarning() << "Storage permission denied";
-    //         // ... 处理权限被拒绝的情况，可能需要对用户进行提示 ...
-    //     }
-    //     watcher->deleteLater();
-    // });
-    // watcher->setFuture(future);
+    // 初始化日志系统
+    LogFileManager::instance().initialize();
+    LogFileManager::instance().logApplicationStart();
 }
 
 bool MainWindow::event(QEvent *event)
@@ -358,6 +354,7 @@ bool MainWindow::gestureEvent(QGestureEvent *event)
 
 void MainWindow::keyPressEvent(QKeyEvent *event)
 {
+    FUNCTION_LOG();
 #ifdef Q_OS_ANDROID
     if (event->key() == Qt::Key_Back) {
         // 处理返回键事件
@@ -384,6 +381,7 @@ void MainWindow::keyPressEvent(QKeyEvent *event)
 
 void MainWindow::onBackToSurveyList()
 {
+    FUNCTION_LOG();
     // 返回问卷列表页面 (仪表板页面)
     m_stackedWidget->setCurrentWidget(m_dashboardWidget);
     statusBar()->showMessage("已返回问卷列表");
@@ -391,30 +389,40 @@ void MainWindow::onBackToSurveyList()
 
 void MainWindow::requestInitialPermissions()
 {
+    FUNCTION_LOG();
     // 请求录音权限
     PermissionManager::instance().requestAudioRecordingPermission([this](bool granted) {
         if (granted) {
             qDebug() << "Initial audio recording permission granted";
+            LogFileManager::instance().logUserAction("Permission", "Initial audio recording permission granted");
+
+
         } else {
             qDebug() << "Initial audio recording permission denied";
+            LogFileManager::instance().logUserAction("Permission", "Initial audio recording permission denied");
         }
         
         // 在录音权限请求完成后，再请求相机权限
         PermissionManager::instance().requestCameraPermission([this](bool granted) {
             if (granted) {
                 qDebug() << "Initial camera permission granted";
+                LogFileManager::instance().logUserAction("Permission", "Initial camera permission granted");
             } else {
                 qDebug() << "Initial camera permission denied";
+                LogFileManager::instance().logUserAction("Permission", "Initial camera permission denied");
+
             }
             
             // 在相机权限请求完成后，再请求定位权限
             PermissionManager::instance().requestLocationPermission([](bool granted) {
                 if (granted) {
                     qDebug() << "Initial location permission granted";
+                    LogFileManager::instance().logUserAction("Permission", "Initial location permission granted");
                     // 初始化定位服务
                     LocationManager::instance().initialize();
                 } else {
                     qDebug() << "Initial location permission denied";
+                    LogFileManager::instance().logUserAction("Permission", "Initial location permission denied");
                 }
             });
         });

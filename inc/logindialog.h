@@ -8,6 +8,7 @@
 #include <QPainter>
 #include <QPixmap>
 #include <QTimer>
+#include "functionlogger.h"
 
 namespace Ui {
 class LoginDialog;

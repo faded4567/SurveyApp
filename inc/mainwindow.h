@@ -10,8 +10,9 @@
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QNetworkAccessManager>
-#include "locationmanager.h"
+#include "functionlogger.h"
 #include "settingswidget.h"
+
 
 class DashboardWidget;
 class SurveyFormWidget;

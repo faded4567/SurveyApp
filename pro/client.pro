@@ -47,7 +47,8 @@ HEADERS += \
     ../inc/dashboardwidget.h \
     ../inc/settingswidget.h \
     ../inc/permissionmanager.h \
-    ../inc/locationmanager.h
+    ../inc/locationmanager.h \
+    ../inc/functionlogger.h \
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin

@@ -1,153 +1,181 @@
 #include "logfilemanager.h"
+#include <QStandardPaths>
 #include <QDir>
-#include <QFileInfo>
+#include <QApplication>
 #include <QDebug>
+#include <QJsonDocument>
 
-LogFileManager::LogFileManager(QObject *parent) : QObject(parent),
-    m_logFile(nullptr),
-    m_textStream(nullptr),
-    m_maxSize(2 * 1024 * 1024), // 默认2MB
-    m_maxDays(7) // 默认保留7天
-{
-}
-
-LogFileManager::~LogFileManager()
-{
-    if (m_textStream) {
-        delete m_textStream;
-    }
-    if (m_logFile) {
-        m_logFile->close();
-        delete m_logFile;
-    }
-}
-
-void LogFileManager::init()
-{
-    // 初始化日志目录和文件
-    initLogFile();
-    // 清理过期日志
-    cleanupOldLogs();
-
-    // 安装消息处理器，捕获Qt的调试信息
-    qInstallMessageHandler([](QtMsgType type, const QMessageLogContext &context, const QString &msg) {
-        Q_UNUSED(context);
-
-        QString level;
-        switch (type) {
-        case QtDebugMsg:
-            level = "DEBUG";
-            break;
-        case QtInfoMsg:
-            level = "INFO";
-            break;
-        case QtWarningMsg:
-            level = "WARN";
-            break;
-        case QtCriticalMsg:
-            level = "ERROR";
-            break;
-        case QtFatalMsg:
-            level = "FATAL";
-            break;
-        }
-
-        QString logMessage = QString("[%1] [%2] %3").arg(
-            QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss.zzz"),
-            level,
-            msg);
-
-        LogFileManager::instance().writeLog(logMessage);
-    });
-}
 LogFileManager& LogFileManager::instance()
 {
     static LogFileManager instance;
     return instance;
 }
-void LogFileManager::initLogFile()
+
+LogFileManager::LogFileManager(QObject *parent)
+    : QObject(parent)
+    , m_initialized(false)
 {
-    // 获取应用数据目录[7](@ref)
-    QString logDirPath = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/logs";
+}
+
+LogFileManager::~LogFileManager()
+{
+    if (m_logFile.isOpen()) {
+        m_logStream.flush();
+        m_logFile.close();
+    }
+}
+
+void LogFileManager::initialize()
+{
+    if (m_initialized) {
+        return;
+    }
+    
+    // 获取应用数据目录
+    QString logDirPath = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
     QDir logDir(logDirPath);
+    
+    // 如果目录不存在则创建
     if (!logDir.exists()) {
         logDir.mkpath(".");
     }
-
-    // 创建以当前日期命名的日志文件
-    QString dateStr = QDateTime::currentDateTime().toString("yyyy-MM-dd");
-    m_logFileName = logDirPath + "/applog_" + dateStr + ".txt";
-
-    m_logFile = new QFile(m_logFileName);
-    if (!m_logFile->open(QIODevice::WriteOnly | QIODevice::Append | QIODevice::Text)) {
-        qWarning() << "Failed to open log file:" << m_logFile->errorString();
-        delete m_logFile;
-        m_logFile = nullptr;
-        return;
-    }
-
-    m_textStream = new QTextStream(m_logFile);
-    *m_textStream << "=============== Application Started ===============\n";
-    *m_textStream << "Start Time: " << QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss") << "\n";
-    *m_textStream << "==================================================\n";
-    m_textStream->flush();
-}
-
-void LogFileManager::writeLog(const QString &log)
-{
-    if (!m_textStream || !m_logFile) {
-        return;
-    }
-
-    // 检查日志文件大小，必要时轮转[8](@ref)
-    checkLogSize();
-
-    *m_textStream << log << "\n";
-    m_textStream->flush();
-}
-
-void LogFileManager::checkLogSize()
-{
-    if (m_logFile->size() > m_maxSize) {
-        // 关闭当前文件
-        m_textStream->flush();
-        m_logFile->close();
-        delete m_textStream;
-        delete m_logFile;
-
-        // 创建新的日志文件（带时间戳）
-        QString timestamp = QDateTime::currentDateTime().toString("yyyyMMdd_hhmmss");
-        QString newFileName = m_logFileName + "." + timestamp + ".bak";
-
-        // 重命名当前文件
-        QFile::rename(m_logFileName, newFileName);
-
-        // 重新初始化日志文件
-        initLogFile();
+    
+    // 创建日志文件名（按日期）
+    QString logFileName = "surveyking_" + QDateTime::currentDateTime().toString("yyyy-MM-dd") + ".log";
+    QString logFilePath = logDirPath + "/" + logFileName;
+    
+    m_logFile.setFileName(logFilePath);
+    
+    // 以追加模式打开文件
+    if (m_logFile.open(QIODevice::WriteOnly | QIODevice::Append | QIODevice::Text)) {
+        m_logStream.setDevice(&m_logFile);
+        m_initialized = true;
+        
+        logApplicationStart();
+    } else {
+        qDebug() << "Failed to open log file:" << logFilePath;
     }
 }
 
-void LogFileManager::cleanupOldLogs()
+void LogFileManager::logUserAction(const QString& action, const QString& details)
 {
-    QString logDirPath = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/logs";
-    QDir logDir(logDirPath);
-
-    QDateTime cutoffDate = QDateTime::currentDateTime().addDays(-m_maxDays);
-
-    QFileInfoList logFiles = logDir.entryInfoList(QStringList() << "applog_*.txt" << "*.bak", QDir::Files);
-    for (const QFileInfo &fileInfo : logFiles) {
-        if (fileInfo.lastModified() < cutoffDate) {
-            QFile::remove(fileInfo.absoluteFilePath());
-        }
+    if (!m_initialized) return;
+    
+    QString message = QString("User Action: %1").arg(action);
+    if (!details.isEmpty()) {
+        message += QString(" | Details: %1").arg(details);
     }
+    
+    writeLogEntry("ACTION", message);
 }
 
-void LogFileManager::setMaxSize(quint64 maxSize)
+void LogFileManager::logNetworkRequest(const QString& endpoint, const QJsonObject& requestData)
 {
-    m_maxSize = maxSize;
+    if (!m_initialized) return;
+    
+    QString message = QString("Network Request: %1").arg(endpoint);
+    
+    if (!requestData.isEmpty()) {
+        QJsonDocument doc(requestData);
+        message += QString(" | Request Data: %1").arg(doc.toJson(QJsonDocument::Compact).constData());
+    }
+    
+    writeLogEntry("REQUEST", message);
 }
 
-void LogFileManager::setMaxDays(int maxDays)
+void LogFileManager::logNetworkResponse(const QString& endpoint, int statusCode, const QJsonObject& responseData)
 {
-    m_maxDays = maxDays;
+    if (!m_initialized) return;
+    
+    QString message = QString("Network Response: %1 | Status Code: %2").arg(endpoint).arg(statusCode);
+    
+    if (!responseData.isEmpty()) {
+        QJsonDocument doc(responseData);
+        message += QString(" | Response Data: %1").arg(doc.toJson(QJsonDocument::Compact).constData());
+    }
+    
+    writeLogEntry("RESPONSE", message);
+}
+
+void LogFileManager::logError(const QString& errorType, const QString& errorMessage, const QString& details)
+{
+    if (!m_initialized) return;
+    
+    QString message = QString("Error: %1 | Message: %2").arg(errorType, errorMessage);
+    if (!details.isEmpty()) {
+        message += QString(" | Details: %1").arg(details);
+    }
+    
+    writeLogEntry("ERROR", message);
+}
+
+void LogFileManager::logApplicationStart()
+{
+    if (!m_initialized) return;
+    
+    QString message = QString("Application Started | Version: %1 | Platform: %2")
+                         .arg(QApplication::applicationVersion())
+                         .arg(QApplication::platformName());
+    
+    writeLogEntry("INFO", message);
+}
+
+void LogFileManager::logApplicationClose()
+{
+    if (!m_initialized) return;
+    
+    QString message = "Application Closed";
+    writeLogEntry("INFO", message);
+    
+    m_logStream.flush();
+}
+
+void LogFileManager::logFunctionEnter(const QString &functionName, const QString &fileName, int lineNumber, const QString &details)
+{
+    if (!m_initialized) return;
+
+    QString message = QString("Function Enter: %1 (File: %2, Line: %3, Thread: %4)")
+                          .arg(functionName)
+                          .arg(fileName)
+                          .arg(lineNumber)
+                          .arg(QString::number((quintptr)QThread::currentThreadId(), 16));
+
+    if (!details.isEmpty()) {
+        message += QString(" | Details: %1").arg(details);
+    }
+
+    writeLogEntry("FUNC_ENTER", message);
+}
+
+void LogFileManager::logFunctionExit(const QString &functionName, const QString &fileName, int lineNumber)
+{
+    if (!m_initialized) return;
+
+    QString message = QString("Function Exit: %1 (File: %2, Line: %3, Thread: %4)")
+                          .arg(functionName)
+                          .arg(fileName)
+                          .arg(lineNumber)
+                          .arg(QString::number((quintptr)QThread::currentThreadId(), 16));
+
+    writeLogEntry("FUNC_EXIT", message);
+}
+
+void LogFileManager::writeLogEntry(const QString& type, const QString& message)
+{
+    if (!m_initialized) return;
+    
+    QMutexLocker locker(&m_mutex);
+    
+    QString logEntry = QString("[%1] [%2] %3\n")
+                          .arg(getCurrentTimestamp())
+                          .arg(type)
+                          .arg(message);
+    
+    m_logStream << logEntry;
+    m_logStream.flush();
+}
+
+QString LogFileManager::getCurrentTimestamp() const
+{
+    return QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss.zzz");
 }

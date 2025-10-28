@@ -16,6 +16,7 @@
 #include <QNetworkAddressEntry>
 #include "surveyencrypt.h"
 #include "locationmanager.h"
+#include "functionlogger.h"
 
 class NetworkManager : public QObject
 {

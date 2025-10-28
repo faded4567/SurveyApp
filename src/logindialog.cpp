@@ -96,6 +96,7 @@ void LoginDialog::onCaptchaImageClicked()
 void LoginDialog::onLoginSuccess(const QJsonObject& userInfo)
 {
     accept(); // 关闭对话框并返回Accepted
+    LogFileManager::instance().logUserAction("Login", "Login successful");
 }
 
 void LoginDialog::onLoginFailed(const QString& error)
