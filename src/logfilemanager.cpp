@@ -41,7 +41,7 @@ void LogFileManager::initialize()
     }
     
     // 创建日志文件名（按日期）
-    QString logFileName = "surveyking_" + QDateTime::currentDateTime().toString("yyyy-MM-dd") + ".log";
+    QString logFileName = "surveyking_" + QDateTime::currentDateTime().toString("yyyy-MM-dd") + ".txt";
     QString logFilePath = logDirPath + "/" + logFileName;
     
     m_logFile.setFileName(logFilePath);

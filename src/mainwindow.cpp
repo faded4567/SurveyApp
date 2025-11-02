@@ -27,6 +27,7 @@
 #include <QGesture>
 #include <QPanGesture>
 #include "permissionmanager.h"
+#include "globalstyle.h"
 // 定义应用名称常量
 static const QString APP_NAME = "SurveyKing客户端";
 
@@ -34,23 +35,12 @@ static const QString APP_NAME = "SurveyKing客户端";
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
 {
+    setWindowFlag(Qt::FramelessWindowHint);
     requestInitialPermissions();
     InitLog();
     setupUi();
     setupConnections();
-    
-    // 设置整体样式表
-    setStyleSheet("QMainWindow { background-color: #f0f8ff; font-family: 'Segoe UI', Arial, sans-serif; }"
-                  "QMenuBar { background-color: #4A90E2; color: white; border-bottom: 1px solid #3a7bc8; }"
-                  "QMenuBar::item { background-color: transparent; padding: 8px 12px; }"
-                  "QMenuBar::item:selected { background-color: #5fa0f0; }"
-                  "QMenuBar::item:pressed { background-color: #3a7bc8; }"
-                  "QMenu { background-color: white; border: 1px solid #b0d4e3; border-radius: 4px; }"
-                  "QMenu::item { padding: 6px 20px; }"
-                  "QMenu::item:selected { background-color: #e1f0fa; }"
-                  "QStatusBar { background-color: #e1f0fa; border-top: 1px solid #b0d4e3; }"
-                  "QStatusBar QLabel { color: #555555; }"
-                  "QMessageBox { background-color: white; }");
+
 
     // 启用触摸手势支持
     grabGesture(Qt::PanGesture);

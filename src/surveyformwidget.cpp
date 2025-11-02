@@ -36,63 +36,39 @@ SurveyFormWidget::SurveyFormWidget(QWidget *parent) : QWidget(parent)
     
     // 创建主布局
     QVBoxLayout *mainLayout = new QVBoxLayout(this);
-    mainLayout->setContentsMargins(0, 0, 0, 0);
-    mainLayout->setSpacing(0);
+    mainLayout->setContentsMargins(5, 5, 5, 5);
+    mainLayout->setSpacing(3);
     
     // 创建顶部标题区域
     m_scrollWidget = new QWidget;
     QVBoxLayout *scrollLayout = new QVBoxLayout(m_scrollWidget);
-    scrollLayout->setContentsMargins(0, 0, 0, 0);
-    scrollLayout->setSpacing(0);
+    scrollLayout->setContentsMargins(5, 5, 5, 5);
+    scrollLayout->setSpacing(3);
+
+    m_titleLabel = new QLabel;
+    m_titleLabel->setStyleSheet("font-size: 20px; font-weight: bold; color: #2c3e50; margin: 15px; padding: 10px; text-align: center;");
+    m_titleLabel->setWordWrap(true);
+    m_titleLabel->setAlignment(Qt::AlignCenter);
+
+    m_descLabel = new QLabel;
+    m_descLabel->setStyleSheet("font-size: 14px; color: #555555; margin: 10px 15px 15px 15px; padding: 10px; background-color: #e1f0fa; border-radius: 8px;");
+    m_descLabel->setWordWrap(true);
     
     // 创建导航按钮
     m_prevButton = new QPushButton("上一题");
     m_nextButton = new QPushButton("下一题");
     m_submitButton = new QPushButton("提交");
     m_backToListButton = new QPushButton("返回问卷列表");
-    
-    // 设置按钮样式
-    QString buttonStyle = "QPushButton {"
-                         "background-color: #4A90E2;"
-                         "color: white;"
-                         "border: none;"
-                         "border-radius: 6px;"
-                         "padding: 10px 15px;"
-                         "font-size: 14px;"
-                         "font-weight: bold;"
-                         "margin: 5px;"
-                         "}"
-                         "QPushButton:hover {"
-                         "background-color: #5fa0f0;"
-                         "}"
-                         "QPushButton:pressed {"
-                         "background-color: #3a7bc8;"
-                         "}";
-                         
-    m_prevButton->setStyleSheet(buttonStyle);
-    m_nextButton->setStyleSheet(buttonStyle);
-    m_submitButton->setStyleSheet(buttonStyle);
-    m_backToListButton->setStyleSheet(buttonStyle);
+
     
     // 创建进度条
     QWidget *progressWidget = new QWidget;
-    progressWidget->setStyleSheet("background-color: white; border-bottom: 1px solid #b0d4e3; padding: 10px;");
     QHBoxLayout *progressLayout = new QHBoxLayout(progressWidget);
     
     m_progressLabel = new QLabel("进度: 0%");
     m_progressLabel->setStyleSheet("font-size: 14px; font-weight: bold; color: #2c3e50; margin-right: 10px;");
     
     m_progressBar = new QProgressBar;
-    m_progressBar->setStyleSheet("QProgressBar {"
-                                "border: 1px solid #b0d4e3;"
-                                "border-radius: 6px;"
-                                "text-align: center;"
-                                "background-color: #f0f8ff;"
-                                "}"
-                                "QProgressBar::chunk {"
-                                "background-color: #4A90E2;"
-                                "border-radius: 5px;"
-                                "}");
     m_progressBar->setMinimum(0);
     m_progressBar->setMaximum(100);
     m_progressBar->setValue(0);
@@ -101,7 +77,8 @@ SurveyFormWidget::SurveyFormWidget(QWidget *parent) : QWidget(parent)
     progressLayout->addWidget(m_progressBar);
     
     // 添加标题和进度条到主布局
-    mainLayout->addWidget(m_scrollWidget, 0);
+    mainLayout->addWidget(m_titleLabel, 0);
+    mainLayout->addWidget(m_descLabel, 0);
     mainLayout->addWidget(progressWidget, 0);
 
     m_scrollArea = new QScrollArea();
@@ -293,62 +270,39 @@ void SurveyFormWidget::renderSurvey(const QJsonObject& schema)
     m_questions.clear();
     m_showQuestions.clear();
 
-    // 设置整体样式表
-    setStyleSheet("QWidget { background-color: #f0f8ff; font-family: 'Segoe UI', Arial, sans-serif; }"
-                  "QGroupBox { background-color: white; border: 1px solid #b0d4e3; border-radius: 10px; margin: 10px; padding: 15px; }"
-                  "QLabel { color: #333333; }"
-                  "QPushButton { background-color: #4A90E2; color: white; border: none; border-radius: 6px; padding: 8px 12px; font-size: 14px; font-weight: bold; }"
-                  "QPushButton:hover { background-color: #5fa0f0; }"
-                  "QPushButton:pressed { background-color: #3a7bc8; }"
-                  "QLineEdit, QTextEdit, QComboBox { padding: 8px; border: 1px solid #b0d4e3; border-radius: 6px; font-size: 14px; background-color: white; }"
-                  "QLineEdit:focus, QTextEdit:focus, QComboBox:focus { border-color: #4A90E2; }"
-                  "QRadioButton, QCheckBox { font-size: 14px; spacing: 10px; color: #333333; }"
-                  "QRadioButton::indicator, QCheckBox::indicator { width: 18px; height: 18px; }"
-                  "QRadioButton::indicator { border-radius: 9px; }"
-                  "QRadioButton::indicator, QCheckBox::indicator { border: 2px solid #b0d4e3; }"
-                  "QRadioButton::indicator:unchecked, QCheckBox::indicator:unchecked { background-color: white; }"
-                  "QRadioButton::indicator:checked, QCheckBox::indicator:checked { background-color: #4A90E2; border: 2px solid #4A90E2; }"
-                  "QRadioButton::indicator:hover, QCheckBox::indicator:hover { border-color: #4A90E2; }"
-                  "QRadioButton::indicator:checked:hover, QCheckBox::indicator:checked:hover { background-color: #5fa0f0; }"
-                  "QComboBox::drop-down { border: none; }"
-                  "QComboBox QAbstractItemView { border: 1px solid #b0d4e3; selection-background-color: #4A90E2; }"
-                  "QTableWidget { gridline-color: #b0d4e3; }"
-                  "QHeaderView::section { background-color: #e1f0fa; padding: 6px; border: 1px solid #b0d4e3; }"
-                  "QScrollBar:vertical { border: none; background: #e1f0fa; width: 12px; margin: 0px 0px 0px 0px; border-radius: 6px; }"
-                  "QScrollBar::handle:vertical { background: #b0d4e3; border-radius: 6px; min-height: 20px; }"
-                  "QScrollBar::handle:vertical:hover { background: #4A90E2; }");
 
     // 解析并显示问卷标题 (SurveyKing中问卷标题在survey.title字段)
     QJsonObject survey = schema["survey"].toObject();
     QString title = survey["title"].toString();
 
     // 清空标题区域内容
-    QLayout *titleLayout = m_scrollWidget->layout();
-    if (titleLayout) {
-        QLayoutItem *item;
-        while ((item = titleLayout->takeAt(0)) != 0) {
-            delete item->widget();
-            delete item;
-        }
-    } else {
-        titleLayout = new QVBoxLayout(m_scrollWidget);
-        titleLayout->setContentsMargins(0, 0, 0, 0);
-        titleLayout->setSpacing(0);
-    }
+    // QLayout *titleLayout = m_scrollWidget->layout();
+    // if (titleLayout) {
+    //     QLayoutItem *item;
+    //     while ((item = titleLayout->takeAt(0)) != 0) {
+    //         delete item->widget();
+    //         delete item;
+    //     }
+    // } else {
+    //     titleLayout = new QVBoxLayout(m_scrollWidget);
+    //     titleLayout->setContentsMargins(5, 5, 5, 5);
+    //     titleLayout->setSpacing(3);
+    // }
 
-    QLabel *titleLabel = new QLabel(title);
-    titleLabel->setStyleSheet("font-size: 20px; font-weight: bold; color: #2c3e50; margin: 15px; padding: 10px; text-align: center;");
-    titleLabel->setWordWrap(true);
-    titleLabel->setAlignment(Qt::AlignCenter);
-    titleLayout->addWidget(titleLabel);
+    // QLabel *titleLabel = new QLabel(title);
+    // QFont titleFont("Microsoft YaHei", 30, QFont::Bold);
+    // titleLabel->setFont(titleFont);
+    // titleLabel->setWordWrap(true);
+    // titleLabel->setAlignment(Qt::AlignCenter);
+
+    // titleLayout->addWidget(titleLabel);
+
+    m_titleLabel->setText(title);
 
     // 解析并显示问卷描述
     QString description = survey["description"].toString();
     if (!description.isEmpty()) {
-        QLabel *descLabel = new QLabel(description);
-        descLabel->setStyleSheet("font-size: 14px; color: #555555; margin: 10px 15px 15px 15px; padding: 10px; background-color: #e1f0fa; border-radius: 8px;");
-        descLabel->setWordWrap(true);
-        titleLayout->addWidget(descLabel);
+        m_descLabel->setText(description);
     }
     
     // 发射开始答题信号
@@ -473,7 +427,6 @@ void SurveyFormWidget::renderQuestionPage(int questionIndex)
     QString description = question["description"].toString(); // 获取题目描述
 
     QGroupBox *questionGroup = new QGroupBox;
-    questionGroup->setStyleSheet("QGroupBox { background-color: white; border: 1px solid #b0d4e3; border-radius: 10px; margin: 10px; padding: 15px; }");
     questionGroup->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::MinimumExpanding);
 
     QVBoxLayout *questionLayout = new QVBoxLayout(questionGroup);
@@ -492,7 +445,6 @@ void SurveyFormWidget::renderQuestionPage(int questionIndex)
     if (!description.isEmpty()) {
         QLabel *descriptionLabel = new QLabel(description);
         descriptionLabel->setWordWrap(true);
-        descriptionLabel->setStyleSheet("font-size: 14px; color: #666666; margin-top: 5px; margin-bottom: 10px;");
         questionLayout->addWidget(descriptionLabel);
     }
 
@@ -507,8 +459,6 @@ void SurveyFormWidget::renderQuestionPage(int questionIndex)
             lineEdit->setProperty("id", optionId);
         }
 
-        lineEdit->setStyleSheet("QLineEdit { padding: 10px; border: 1px solid #b0d4e3; border-radius: 6px; font-size: 14px; background-color: white; }"
-                               "QLineEdit:focus { border-color: #4A90E2; box-shadow: 0 0 5px rgba(74, 144, 226, 0.5); }");
         questionLayout->addWidget(lineEdit);
     }
     else if (type == "Textarea") {
@@ -520,8 +470,6 @@ void SurveyFormWidget::renderQuestionPage(int questionIndex)
             QString optionId = option["id"].toString();
             textEdit->setProperty("id", optionId);
         }
-        textEdit->setStyleSheet("QTextEdit { padding: 10px; border: 1px solid #b0d4e3; border-radius: 6px; font-size: 14px; background-color: white; }"
-                               "QTextEdit:focus { border-color: #4A90E2; box-shadow: 0 0 5px rgba(74, 144, 226, 0.5); }");
         textEdit->setMaximumHeight(150);
         questionLayout->addWidget(textEdit);
     }
@@ -550,28 +498,18 @@ void SurveyFormWidget::renderQuestionPage(int questionIndex)
                 QRadioButton *radioButton = new QRadioButton;
                 radioButton->setProperty("field", field);
                 radioButton->setProperty("value", optionId);
-                radioButton->setStyleSheet("QRadioButton { font-size: 14px; spacing: 12px; color: #333333; }"
-                                          "QRadioButton::indicator { width: 20px; height: 20px; border-radius: 10px; border: 2px solid #b0d4e3; }"
-                                          "QRadioButton::indicator:unchecked { background-color: white; }"
-                                          "QRadioButton::indicator:checked { background-color: #4A90E2; border: 2px solid #4A90E2; }"
-                                          "QRadioButton::indicator:hover { border-color: #4A90E2; }"
-                                          "QRadioButton::indicator:checked:hover { background-color: #5fa0f0; }");
                 // 提取下划线前的文本作为标签
                 QString label = optionText;
                 label.replace("____________", "");
                 QLabel *optionLabel = new QLabel(label);
-                optionLabel->setStyleSheet("font-size: 14px; color: #333333;");
                 
                 QLineEdit *lineEdit = new QLineEdit;
                 // 示例：设置下划线样式
-                lineEdit->setStyleSheet("QLineEdit { border: none; border-bottom: 1px solid black; background-color: transparent; }");
                 lineEdit->setProperty("field", field);
                 QJsonArray chi = option["children"].toArray();
                 QString sub = chi.at(0)["id"].toString();
                 lineEdit->setProperty("subField", optionId);
                 lineEdit->setProperty("id", sub);
-                lineEdit->setStyleSheet("QLineEdit { padding: 6px; border: 1px solid #b0d4e3; border-radius: 4px; font-size: 14px; background-color: white; margin-left: 10px; }"
-                                       "QLineEdit:focus { border-color: #4A90E2; box-shadow: 0 0 3px rgba(74, 144, 226, 0.5); }");
                 lineEdit->setPlaceholderText("请输入");
                 lineEdit->setEnabled(false); // 默认禁用，选中单选按钮后启用
                 
@@ -595,12 +533,6 @@ void SurveyFormWidget::renderQuestionPage(int questionIndex)
                 QRadioButton *radioButton = new QRadioButton(optionText);
                 radioButton->setProperty("field", field);
                 radioButton->setProperty("value", optionId);
-                radioButton->setStyleSheet("QRadioButton { font-size: 14px; spacing: 12px; color: #333333; }"
-                                          "QRadioButton::indicator { width: 20px; height: 20px; border-radius: 10px; border: 2px solid #b0d4e3; }"
-                                          "QRadioButton::indicator:unchecked { background-color: white; }"
-                                          "QRadioButton::indicator:checked { background-color: #4A90E2; border: 2px solid #4A90E2; }"
-                                          "QRadioButton::indicator:hover { border-color: #4A90E2; }"
-                                          "QRadioButton::indicator:checked:hover { background-color: #5fa0f0; }");
                 buttonGroup->addButton(radioButton, j);
                 optionsLayout->addWidget(radioButton);
             }
@@ -633,24 +565,15 @@ void SurveyFormWidget::renderQuestionPage(int questionIndex)
                 QCheckBox *checkBox = new QCheckBox;
                 checkBox->setProperty("field", field);
                 checkBox->setProperty("value", optionId);
-                checkBox->setStyleSheet("QCheckBox { font-size: 14px; spacing: 12px; color: #333333; }"
-                                       "QCheckBox::indicator { width: 20px; height: 20px; border: 2px solid #b0d4e3; border-radius: 4px; }"
-                                       "QCheckBox::indicator:unchecked { background-color: white; }"
-                                       "QCheckBox::indicator:checked { background-color: #4A90E2; border: 2px solid #4A90E2; }"
-                                       "QCheckBox::indicator:hover { border-color: #4A90E2; }"
-                                       "QCheckBox::indicator:checked:hover { background-color: #5fa0f0; }");
                 
                 // 提取下划线前的文本作为标签
                 QString label = optionText;
                 label.replace("____________", "");
                 QLabel *optionLabel = new QLabel(label);
-                optionLabel->setStyleSheet("font-size: 14px; color: #333333;");
                 
                 QLineEdit *lineEdit = new QLineEdit;
                 lineEdit->setProperty("field", field);
                 lineEdit->setProperty("subField", optionId);
-                lineEdit->setStyleSheet("QLineEdit { padding: 6px; border: 1px solid #b0d4e3; border-radius: 4px; font-size: 14px; background-color: white; margin-left: 10px; }"
-                                       "QLineEdit:focus { border-color: #4A90E2; box-shadow: 0 0 3px rgba(74, 144, 226, 0.5); }");
                 lineEdit->setPlaceholderText("请输入");
                 lineEdit->setEnabled(false); // 默认禁用，选中复选框后启用
                 
@@ -674,12 +597,6 @@ void SurveyFormWidget::renderQuestionPage(int questionIndex)
                 QCheckBox *checkBox = new QCheckBox(optionText);
                 checkBox->setProperty("field", field);
                 checkBox->setProperty("value", optionId);
-                checkBox->setStyleSheet("QCheckBox { font-size: 14px; spacing: 12px; color: #333333; }"
-                                       "QCheckBox::indicator { width: 20px; height: 20px; border: 2px solid #b0d4e3; border-radius: 4px; }"
-                                       "QCheckBox::indicator:unchecked { background-color: white; }"
-                                       "QCheckBox::indicator:checked { background-color: #4A90E2; border: 2px solid #4A90E2; }"
-                                       "QCheckBox::indicator:hover { border-color: #4A90E2; }"
-                                       "QCheckBox::indicator:checked:hover { background-color: #5fa0f0; }");
                 buttonGroup->addButton(checkBox, j);
                 optionsLayout->addWidget(checkBox);
             }
@@ -690,11 +607,6 @@ void SurveyFormWidget::renderQuestionPage(int questionIndex)
     else if (type == "Select") {
         QComboBox *comboBox = new QComboBox;
         comboBox->setProperty("field", field);
-        comboBox->setStyleSheet("QComboBox { padding: 10px; border: 1px solid #b0d4e3; border-radius: 6px; font-size: 14px; background-color: white; }"
-                               "QComboBox:focus { border-color: #4A90E2; box-shadow: 0 0 5px rgba(74, 144, 226, 0.5); }"
-                               "QComboBox::drop-down { border: none; }"
-                               "QComboBox::down-arrow { image: none; width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 5px solid #4A90E2; margin-right: 10px; }"
-                               "QComboBox QAbstractItemView { border: 1px solid #b0d4e3; selection-background-color: #4A90E2; border-radius: 0 0 6px 6px; }");
         
         // 添加空选项作为默认选项
         comboBox->addItem("请选择");
@@ -718,12 +630,9 @@ void SurveyFormWidget::renderQuestionPage(int questionIndex)
             
             QHBoxLayout *blankLayout = new QHBoxLayout;
             QLabel *blankLabel = new QLabel(blankTitle + ":");
-            blankLabel->setStyleSheet("font-size: 14px; color: #333333;");
             QLineEdit *lineEdit = new QLineEdit;
             lineEdit->setProperty("field", field);
             lineEdit->setProperty("subField", blankId);
-            lineEdit->setStyleSheet("QLineEdit { padding: 8px; border: 1px solid #b0d4e3; border-radius: 6px; font-size: 14px; background-color: white; }"
-                                   "QLineEdit:focus { border-color: #4A90E2; box-shadow: 0 0 5px rgba(74, 144, 226, 0.5); }");
             
             blankLayout->addWidget(blankLabel);
             blankLayout->addWidget(lineEdit);
@@ -740,15 +649,10 @@ void SurveyFormWidget::renderQuestionPage(int questionIndex)
         slider->setTickPosition(QSlider::TicksBelow);
         slider->setTickInterval(1);
         slider->setProperty("field", field);
-        slider->setStyleSheet("QSlider::groove:horizontal { height: 8px; background: #e1f0fa; border-radius: 4px; }"
-                             "QSlider::handle:horizontal { background: #4A90E2; border: 2px solid #4A90E2; width: 20px; margin: -6px 0; border-radius: 10px; }"
-                             "QSlider::handle:horizontal:hover { background: #5fa0f0; }"
-                             "QSlider::sub-page:horizontal { background: #4A90E2; border-radius: 4px; }");
         
         QHBoxLayout *scoreLabelsLayout = new QHBoxLayout;
         for (int i = 0; i <= 10; ++i) {
             QLabel *label = new QLabel(QString::number(i));
-            label->setStyleSheet("font-size: 12px; color: #555555;");
             label->setAlignment(Qt::AlignCenter);
             scoreLabelsLayout->addWidget(label);
         }
@@ -762,16 +666,10 @@ void SurveyFormWidget::renderQuestionPage(int questionIndex)
         QVBoxLayout *cascaderLayout = new QVBoxLayout;
         
         QComboBox *firstLevelCombo = new QComboBox;
-        firstLevelCombo->setStyleSheet("QComboBox { padding: 8px; border: 1px solid #b0d4e3; border-radius: 6px; font-size: 14px; background-color: white; }"
-                                      "QComboBox:focus { border-color: #4A90E2; }"
-                                      "QComboBox::drop-down { border: none; }");
         firstLevelCombo->addItem("请选择");
         firstLevelCombo->setProperty("field", field);
         
         QComboBox *secondLevelCombo = new QComboBox;
-        secondLevelCombo->setStyleSheet("QComboBox { padding: 8px; border: 1px solid #b0d4e3; border-radius: 6px; font-size: 14px; background-color: white; }"
-                                       "QComboBox:focus { border-color: #4A90E2; }"
-                                       "QComboBox::drop-down { border: none; }");
         secondLevelCombo->addItem("请选择");
         secondLevelCombo->setEnabled(false);
         
@@ -802,22 +700,9 @@ void SurveyFormWidget::renderQuestionPage(int questionIndex)
         QVBoxLayout *uploadLayout = new QVBoxLayout;
         
         QPushButton *uploadButton = new QPushButton("选择文件");
-        uploadButton->setStyleSheet("QPushButton {"
-                                   "background-color: #e1f0fa;"
-                                   "color: #4A90E2;"
-                                   "border: 1px solid #b0d4e3;"
-                                   "border-radius: 6px;"
-                                   "padding: 10px 15px;"
-                                   "font-size: 14px;"
-                                   "font-weight: normal;"
-                                   "}"
-                                   "QPushButton:hover {"
-                                   "background-color: #d0e6f8;"
-                                   "}");
         uploadButton->setProperty("field", field);
         
         QLabel *fileListLabel = new QLabel("已选择文件：无");
-        fileListLabel->setStyleSheet("font-size: 14px; color: #555555; padding: 8px;");
         fileListLabel->setWordWrap(true);
         
         // 保存引用以便后续更新
@@ -838,41 +723,17 @@ void SurveyFormWidget::renderQuestionPage(int questionIndex)
         QVBoxLayout *signatureLayout = new QVBoxLayout;
         
         QLabel *signatureLabel = new QLabel("请在下方区域签名（模拟实现）");
-        signatureLabel->setStyleSheet("font-size: 14px; color: #555555; padding: 8px;");
         
         // 签名显示区域
         QLabel *signatureArea = new QLabel("签名区域");
-        signatureArea->setStyleSheet("background-color: #f8fbfd; border: 1px dashed #b0d4e3; border-radius: 6px; padding: 20px; margin: 10px 0; color: #999999;");
         signatureArea->setAlignment(Qt::AlignCenter);
         signatureArea->setMinimumHeight(100);
         signatureArea->setProperty("field", field);
         
         QHBoxLayout *signatureButtonsLayout = new QHBoxLayout;
         QPushButton *signButton = new QPushButton("签名");
-        signButton->setStyleSheet("QPushButton {"
-                                 "background-color: #4A90E2;"
-                                 "color: white;"
-                                 "border: none;"
-                                 "border-radius: 6px;"
-                                 "padding: 8px 15px;"
-                                 "font-size: 14px;"
-                                 "}"
-                                 "QPushButton:hover {"
-                                 "background-color: #5fa0f0;"
-                                 "}");
         
         QPushButton *clearButton = new QPushButton("清除");
-        clearButton->setStyleSheet("QPushButton {"
-                                  "background-color: #e74c3c;"
-                                  "color: white;"
-                                  "border: none;"
-                                  "border-radius: 6px;"
-                                  "padding: 8px 15px;"
-                                  "margin-left: 10px;"
-                                  "}"
-                                  "QPushButton:hover {"
-                                  "background-color: #f06c5c;"
-                                  "}");
         
         signatureButtonsLayout->addWidget(signButton);
         signatureButtonsLayout->addWidget(clearButton);
@@ -889,22 +750,9 @@ void SurveyFormWidget::renderQuestionPage(int questionIndex)
         QVBoxLayout *barcodeLayout = new QVBoxLayout;
         
         QPushButton *scanButton = new QPushButton("扫描二维码");
-        scanButton->setStyleSheet("QPushButton {"
-                                 "background-color: #4A90E2;"
-                                 "color: white;"
-                                 "border: none;"
-                                 "border-radius: 6px;"
-                                 "padding: 10px 15px;"
-                                 "font-size: 14px;"
-                                 "font-weight: normal;"
-                                 "}"
-                                 "QPushButton:hover {"
-                                 "background-color: #5fa0f0;"
-                                 "}");
         barcodeLayout->addWidget(scanButton);
         
         QLabel *barcodeResult = new QLabel("扫描结果将显示在这里");
-        barcodeResult->setStyleSheet("font-size: 14px; color: #555555; padding: 8px; background-color: #f8fbfd; border-radius: 6px; margin-top: 10px;");
         barcodeResult->setWordWrap(true);
         barcodeLayout->addWidget(barcodeResult);
         
@@ -914,8 +762,6 @@ void SurveyFormWidget::renderQuestionPage(int questionIndex)
         // 默认处理 - 简单文本输入
         QLineEdit *lineEdit = new QLineEdit;
         lineEdit->setProperty("field", field);
-        lineEdit->setStyleSheet("QLineEdit { padding: 10px; border: 1px solid #b0d4e3; border-radius: 6px; font-size: 14px; background-color: white; }"
-                               "QLineEdit:focus { border-color: #4A90E2; box-shadow: 0 0 5px rgba(74, 144, 226, 0.5); }");
         questionLayout->addWidget(lineEdit);
     }
     

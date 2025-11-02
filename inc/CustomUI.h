@@ -52,13 +52,6 @@ public:
         QScroller::grabGesture(this, QScroller::TouchGesture); // [7](@ref)
 
         // 4. （可选）针对移动端调整滚动条样式，使其更细更美观
-        verticalScrollBar()->setStyleSheet(
-            "QScrollBar:vertical { width: 10px; background: transparent; margin: 0px; }"
-            "QScrollBar::handle:vertical { background: #c0c0c0; border-radius: 5px; min-height: 20px; }"
-            "QScrollBar::handle:vertical:hover { background: #a0a0a0; }"
-            "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { background: none; }"
-            "QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: none; }"
-            ); // [3](@ref)
     }
 
 signals:

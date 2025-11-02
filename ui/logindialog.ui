@@ -92,7 +92,7 @@ border: 1px solid #ddd;
 border-radius: 4px;</string>
           </property>
           <property name="echoMode">
-           <enum>QLineEdit::EchoMode::Password</enum>
+           <enum>QLineEdit::EchoMode::PasswordEchoOnEdit</enum>
           </property>
           <property name="placeholderText">
            <string>请输入密码</string>

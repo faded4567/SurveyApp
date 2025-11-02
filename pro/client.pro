@@ -34,6 +34,7 @@ SOURCES += \
     ../src/settingswidget.cpp \
     ../src/permissionmanager.cpp \
     ../src/locationmanager.cpp \
+    ../src/globalstyle.cpp
 
 HEADERS += \
     ../inc/CustomUI.h \
@@ -49,6 +50,7 @@ HEADERS += \
     ../inc/permissionmanager.h \
     ../inc/locationmanager.h \
     ../inc/functionlogger.h \
+    ../inc/globalstyle.h
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
@@ -96,3 +98,6 @@ android{
         DESTDIR = ../bin/armeabi-v7a/
     }
 }
+
+RESOURCES += \
+    ../res/global.qrc

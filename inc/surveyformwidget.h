@@ -126,6 +126,8 @@ private:
     
     // 添加滚动和触摸相关变量
     QScrollArea *m_scrollArea;
+    QLabel *m_titleLabel;
+    QLabel *m_descLabel;
     QWidget *m_scrollWidget;
     qint64 m_startTime;
     qint64 m_endTime;

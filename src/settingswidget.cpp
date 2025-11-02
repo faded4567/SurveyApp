@@ -23,9 +23,7 @@ ChangelogDialog::ChangelogDialog(QWidget *parent) : QDialog(parent)
     // 设置窗口标志，无边框和置顶
     setWindowFlags(Qt::Popup | Qt::FramelessWindowHint);
     setModal(true);
-    
-    // 设置背景色
-    setStyleSheet("QDialog { background-color: white; border: 1px solid gray; border-radius: 10px; }");
+
     
     // 创建主布局
     QVBoxLayout *mainLayout = new QVBoxLayout(this);
@@ -34,29 +32,14 @@ ChangelogDialog::ChangelogDialog(QWidget *parent) : QDialog(parent)
     
     // 创建标题栏
     QWidget *titleBar = new QWidget;
-    titleBar->setStyleSheet("background-color: #4A90E2; border-radius: 5px;");
     QHBoxLayout *titleLayout = new QHBoxLayout(titleBar);
     titleLayout->setContentsMargins(10, 5, 10, 5);
     
     QLabel *titleLabel = new QLabel("更新日志");
-    titleLabel->setStyleSheet("color: white; font-size: 16px; font-weight: bold;");
     titleLayout->addWidget(titleLabel);
     
     QPushButton *closeButton = new QPushButton("×");
     closeButton->setFixedSize(30, 30);
-    closeButton->setStyleSheet(
-        "QPushButton {"
-        "   background-color: transparent;"
-        "   color: white;"
-        "   font-size: 20px;"
-        "   font-weight: bold;"
-        "   border: none;"
-        "}"
-        "QPushButton:hover {"
-        "   background-color: rgba(255, 255, 255, 0.2);"
-        "   border-radius: 15px;"
-        "}"
-    );
     connect(closeButton, &QPushButton::clicked, this, &QDialog::accept);
     titleLayout->addWidget(closeButton);
     
@@ -69,31 +52,11 @@ ChangelogDialog::ChangelogDialog(QWidget *parent) : QDialog(parent)
     
     // 创建标签页控件显示不同版本的更新日志
     QTabWidget *tabWidget = new QTabWidget;
-    tabWidget->setStyleSheet(
-        "QTabWidget::pane {"
-        "   border: 1px solid #ccc;"
-        "   border-radius: 5px;"
-        "}"
-        "QTabBar::tab {"
-        "   background: #f0f0f0;"
-        "   padding: 8px 12px;"
-        "   margin: 2px;"
-        "   border-radius: 3px;"
-        "}"
-        "QTabBar::tab:selected {"
-        "   background: #4A90E2;"
-        "   color: white;"
-        "}"
-        "QTabBar::tab:hover:!selected {"
-        "   background: #ddd;"
-        "}"
-    );
     
     
     // v0.1.0 版本更新日志
     QTextBrowser *v010Log = new QTextBrowser;
     v010Log->setOpenExternalLinks(true);
-    v010Log->setStyleSheet("QTextBrowser { font-size: 14px; }");
     v010Log->setHtml(
         "<h3 style='color: #2c3e50; margin-top: 10px;'>v1.0.0 (2025-10-26)</h3>"
         "<h4 style='color: #3498db;'>🆕 新增功能</h4>"
@@ -116,7 +79,6 @@ ChangelogDialog::ChangelogDialog(QWidget *parent) : QDialog(parent)
     // v0.1.1 版本更新日志
     QTextBrowser *v011Log = new QTextBrowser;
     v011Log->setOpenExternalLinks(true);
-    v011Log->setStyleSheet("QTextBrowser { font-size: 14px; }");
     v011Log->setHtml(
         "<h3 style='color: #2c3e50; margin-top: 10px;'>v1.0.0 (2025-10-26)</h3>"
         "<h4 style='color: #3498db;'>🆕 新增功能</h4>"
@@ -125,6 +87,8 @@ ChangelogDialog::ChangelogDialog(QWidget *parent) : QDialog(parent)
         "</ul>"
         "<h4 style='color: #3498db;'>⛑ 问题修复</h4>"
         "<ul>"
+        "<li>修改应用的资源为全局控制，更容易管理</li>"
+        "<li>解决切回后台再切回应用时，布局会更改的问题</li>"
         "</ul>"
         );
 
@@ -206,22 +170,6 @@ SettingsWidget::SettingsWidget(QWidget *parent) : QWidget(parent)
     
     // 更新日志按钮
     m_changelogButton = new QPushButton("查看更新日志");
-    m_changelogButton->setStyleSheet("QPushButton {"
-                             "background-color: #4A90E2;"
-                             "color: white;"
-                             "border: none;"
-                             "border-radius: 8px;"
-                             "padding: 12px 30px;"
-                             "font-size: 15px;"
-                             "font-weight: bold;"
-                             "margin: 10px;"
-                             "}"
-                             "QPushButton:hover {"
-                             "background-color: #5fa0f0;"
-                             "}"
-                             "QPushButton:pressed {"
-                             "background-color: #3a7bc8;"
-                             "}");
     connect(m_changelogButton, &QPushButton::clicked, this, &SettingsWidget::onShowChangelogClicked);
     
     QHBoxLayout *changelogLayout = new QHBoxLayout;
@@ -232,22 +180,6 @@ SettingsWidget::SettingsWidget(QWidget *parent) : QWidget(parent)
     
     // 保存按钮
     QPushButton *saveButton = new QPushButton("保存设置");
-    saveButton->setStyleSheet("QPushButton {"
-                             "background-color: #4A90E2;"
-                             "color: white;"
-                             "border: none;"
-                             "border-radius: 8px;"
-                             "padding: 12px 30px;"
-                             "font-size: 15px;"
-                             "font-weight: bold;"
-                             "margin: 10px;"
-                             "}"
-                             "QPushButton:hover {"
-                             "background-color: #5fa0f0;"
-                             "}"
-                             "QPushButton:pressed {"
-                             "background-color: #3a7bc8;"
-                             "}");
     connect(saveButton, &QPushButton::clicked, this, &SettingsWidget::onSaveClicked);
     
     QHBoxLayout *buttonLayout = new QHBoxLayout;

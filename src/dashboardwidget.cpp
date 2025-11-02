@@ -28,34 +28,14 @@ DashboardWidget::DashboardWidget(QWidget *parent) : QWidget(parent)
 {
     m_isResumingFromBackground = false;
     
-    // 设置整体样式表
-    setStyleSheet("QWidget { background-color: #f0f8ff; font-family: 'Segoe UI', Arial, sans-serif; }"
-                  "QLabel { color: #333333; }"
-                  "QPushButton { background-color: #4A90E2; color: white; border: none; border-radius: 6px; padding: 8px 16px; font-size: 14px; font-weight: normal; }"
-                  "QPushButton:hover { background-color: #5fa0f0; }"
-                  "QPushButton:pressed { background-color: #3a7bc8; }"
-                  "QTabWidget::pane { border: 1px solid #b0d4e3; border-radius: 6px; }"
-                  "QTabBar::tab { background-color: #e1f0fa; border: 1px solid #b0d4e3; padding: 8px 16px; margin: 2px; border-radius: 4px; }"
-                  "QTabBar::tab:selected { background-color: #4A90E2; color: white; }"
-                  "QTabBar::tab:!selected { background-color: #e1f0fa; }"
-                  "QListWidget { background-color: white; border: 1px solid #b0d4e3; border-radius: 6px; }"
-                  "QListWidget::item { padding: 10px; border-bottom: 1px solid #e1f0fa; }"
-                  "QListWidget::item:selected { background-color: #d0e6f8; }"
-                  "QLineEdit, QTextEdit { padding: 8px; border: 1px solid #b0d4e3; border-radius: 6px; font-size: 14px; background-color: white; }"
-                  "QLineEdit:focus, QTextEdit:focus { border-color: #4A90E2; }"
-                  "QScrollBar:vertical { border: none; background: #e1f0fa; width: 12px; margin: 0px 0px 0px 0px; border-radius: 6px; }"
-                  "QScrollBar::handle:vertical { background: #b0d4e3; border-radius: 6px; min-height: 20px; }"
-                  "QScrollBar::handle:vertical:hover { background: #4A90E2; }");
 
     QGridLayout *mainlayout = new QGridLayout(this);
 
     // 创建工具栏
     // m_refreshButton = new QPushButton("刷新");
-    // m_refreshButton->setStyleSheet("QPushButton { padding: 8px 16px; }");
     // mainlayout->addWidget(m_refreshButton,0,0,1,1);
 
     // m_projectStatusLabel = new QLabel("项目加载中...");
-    // m_projectStatusLabel->setStyleSheet("QLabel { background-color: #4A90E2; padding: 0 10px; }");
     // mainlayout->addWidget(m_projectStatusLabel,0,0,1,1);
 
     // 创建标签页
@@ -96,7 +76,6 @@ void DashboardWidget::setupMyProfileTab()
     // 创建输入控件
     m_usernameEdit = new QLineEdit;
     m_usernameEdit->setReadOnly(true);
-    m_usernameEdit->setStyleSheet("QLineEdit { background-color: #f8fbfd; }");
     m_emailEdit = new QLineEdit;
     m_phoneEdit = new QLineEdit;
     m_profileEdit = new QTextEdit;
@@ -110,12 +89,8 @@ void DashboardWidget::setupMyProfileTab()
 
     // 创建保存按钮和状态标签
     m_saveProfileButton = new QPushButton("保存");
-    m_saveProfileButton->setStyleSheet("QPushButton { padding: 10px 20px; font-size: 15px; }");
     m_saveStatusLabel = new QLabel;
-    m_saveStatusLabel->setStyleSheet("QLabel { color: #27ae60; font-weight: bold; padding: 0 10px; }");
     m_logoutButton = new QPushButton("退出登录");
-    m_logoutButton->setStyleSheet("QPushButton { background-color: #e74c3c; padding: 10px 20px; font-size: 15px; }"
-                                  "QPushButton:hover { background-color: #f06c5c; }");
 
     // 创建按钮布局
     QHBoxLayout *buttonLayout = new QHBoxLayout;
