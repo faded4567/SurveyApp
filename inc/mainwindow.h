@@ -49,6 +49,7 @@ private slots:
     void onSurveySelected(const QString& surveyId, const QString& title);
     void onLoginSuccess(const QJsonObject& userInfo);
     void onLogout();
+    void onLogFailed(const QString& error);
     void onRegisterRequested(const QString& username, const QString& password);
     void onLoginRequested(const QString& username, const QString& password);
     void onProjectListReceived(const QJsonArray& projects);

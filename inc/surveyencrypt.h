@@ -20,6 +20,10 @@
 #include <openssl/err.h>
 #endif
 
+#if defined(Q_OS_IOS)
+#include <QLibrary>
+#endif
+
 class SurveyEncrypt {
 public:
     /**
@@ -144,6 +148,7 @@ public:
         QStringList result;
 
 #ifdef USE_OPENSSL
+#if defined(Q_OS_ANDROID) || defined(Q_OS_IOS)
         // 对数据进行 URL 编码，模拟前端 encodeURIComponent
         QString encodedData = QString::fromUtf8(QUrl::toPercentEncoding(data));
         QByteArray originData = encodedData.toUtf8();
@@ -207,6 +212,9 @@ public:
         }
 
         RSA_free(rsaKey);
+#else
+        qWarning() << "not android or ios dont use openssl";
+#endif
 #else
         // 如果没有 OpenSSL，可以使用 QT 内置的 RSA 实现（功能有限）
         Q_UNUSED(data);

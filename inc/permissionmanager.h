@@ -9,10 +9,10 @@
 #include <QScopedPointer>
 
 #ifdef Q_OS_ANDROID
-#include <QCoreApplication>
 #include <QJniObject>
-#include <QPermissions>
 #endif
+#include <QCoreApplication>
+#include <QPermissions>
 
 class PermissionManager : public QObject
 {
@@ -55,7 +55,7 @@ signals:
 private:
     explicit PermissionManager(QObject *parent = nullptr);
 
-#ifdef Q_OS_ANDROID
+#if defined(Q_OS_ANDROID) || defined(Q_OS_IOS)
     void handleAudioPermissionResult(const QPermission &permission);
     void handleCameraPermissionResult(const QPermission &permission);
     void handleLocationPermissionResult(const QPermission &permission);

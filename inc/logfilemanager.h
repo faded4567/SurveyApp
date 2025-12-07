@@ -8,6 +8,7 @@
 #include <QJsonObject>
 #include <QJsonDocument>
 #include <QMutex>
+#include <QThread>
 
 class LogFileManager : public QObject
 {

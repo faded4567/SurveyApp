@@ -83,7 +83,7 @@ private:
 
     QNetworkAccessManager* m_networkManager;
     QString m_authToken;
-    QString m_baseUrl = "http://8.141.124.154:1991/api";
+    QString m_baseUrl = "http://8.130.152.144:1991/api";
     QJsonArray m_metaArray;
     QJsonArray m_SchemaMetaArray;
     QJsonObject m_encryptInfo;

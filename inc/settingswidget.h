@@ -14,6 +14,7 @@
 #include <QDialog>
 #include <QTextEdit>
 #include <QTabWidget>
+#include <QListWidget>
 
 // 自定义对话框类，用于显示更新日志
 class ChangelogDialog : public QDialog
@@ -43,9 +44,10 @@ signals:
     void backToMain();
 
 private slots:
-    void onSaveClicked();
+    void onSettingChanged();
     void onBackClicked();
     void onShowChangelogClicked();
+    void onOtherSettingsItemClicked(QListWidgetItem *item);
 
 private:
     void loadSettings();
@@ -61,9 +63,10 @@ private:
     QCheckBox *m_autoCaptureCheckBox; // 添加自动拍照选项
     QLabel *m_captureIntervalLabel;
     QSpinBox *m_captureIntervalSpinBox; // 添加拍照时间间隔输入框
-    
-    // 更新日志按钮
-    QPushButton *m_changelogButton;
+
+    // 其他设置相关控件
+    QGroupBox *m_otherSettingsGroup;
+    QListWidget *m_otherSettingsList;
 };
 
 #endif // SETTINGSWIDGET_H

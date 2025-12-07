@@ -23,7 +23,7 @@ void PermissionManager::requestAudioRecordingPermission(std::function<void(bool)
 {
     m_audioCallback = callback;
 
-#ifdef Q_OS_ANDROID
+#if defined(Q_OS_ANDROID) || defined(Q_OS_IOS)
     QMicrophonePermission microphonePermission;
     switch (qApp->checkPermission(microphonePermission)) {
     case Qt::PermissionStatus::Undetermined:
@@ -60,7 +60,7 @@ void PermissionManager::requestCameraPermission(std::function<void(bool)> callba
 {
     m_cameraCallback = callback;
 
-#ifdef Q_OS_ANDROID
+#if defined(Q_OS_ANDROID) || defined(Q_OS_IOS)
     QCameraPermission cameraPermission;
     switch (qApp->checkPermission(cameraPermission)) {
     case Qt::PermissionStatus::Undetermined:
@@ -97,9 +97,9 @@ void PermissionManager::requestLocationPermission(std::function<void(bool)> call
 {
     m_locationCallback = callback;
 
-#ifdef Q_OS_ANDROID
+#if defined(Q_OS_ANDROID) || defined(Q_OS_IOS)
     QLocationPermission locationPermission;
-    locationPermission.setAccuracy(QLocationPermission::Approximate);
+    locationPermission.setAccuracy(QLocationPermission::Precise);
     switch (qApp->checkPermission(locationPermission)) {
     case Qt::PermissionStatus::Undetermined:
         // 请求权限
@@ -133,7 +133,7 @@ void PermissionManager::requestLocationPermission(std::function<void(bool)> call
 
 bool PermissionManager::hasAudioRecordingPermission() const
 {
-#ifdef Q_OS_ANDROID
+#if defined(Q_OS_ANDROID) || defined(Q_OS_IOS)
     QMicrophonePermission microphonePermission;
     return (qApp->checkPermission(microphonePermission) == Qt::PermissionStatus::Granted);
 #else
@@ -143,7 +143,7 @@ bool PermissionManager::hasAudioRecordingPermission() const
 
 bool PermissionManager::hasCameraPermission() const
 {
-#ifdef Q_OS_ANDROID
+#if defined(Q_OS_ANDROID) || defined(Q_OS_IOS)
     QCameraPermission cameraPermission;
     return (qApp->checkPermission(cameraPermission) == Qt::PermissionStatus::Granted);
 #else
@@ -153,7 +153,7 @@ bool PermissionManager::hasCameraPermission() const
 
 bool PermissionManager::hasLocationPermission() const
 {
-#ifdef Q_OS_ANDROID
+#if defined(Q_OS_ANDROID) || defined(Q_OS_IOS)
     QLocationPermission locationPermission;
     return (qApp->checkPermission(locationPermission) == Qt::PermissionStatus::Granted);
 #else
@@ -161,7 +161,7 @@ bool PermissionManager::hasLocationPermission() const
 #endif
 }
 
-#ifdef Q_OS_ANDROID
+#if defined(Q_OS_ANDROID) || defined(Q_OS_IOS)
 void PermissionManager::handleAudioPermissionResult(const QPermission &permission)
 {
     if (permission.status() == Qt::PermissionStatus::Granted) {

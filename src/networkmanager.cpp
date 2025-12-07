@@ -29,6 +29,7 @@ QString NetworkManager::authToken() const
 
 void NetworkManager::InitManager()
 {
+
     // 获取RSA公钥
     QNetworkRequest request = createRequest("/system");
     m_networkManager->get(request);
@@ -350,6 +351,7 @@ void NetworkManager::onReplyFinished(QNetworkReply* reply)
     if (reply->error() != QNetworkReply::NoError) {
         QString errorStr = reply->errorString();
         LogFileManager::instance().logError("NetworkError", errorStr, "Error code: " + QString::number(reply->error()));
+        qDebug()<<errorStr<<"Error code: " + QString::number(reply->error());
         emit networkError(reply->errorString());
         reply->deleteLater();
         return;

@@ -16,6 +16,41 @@
 #include <QHBoxLayout>
 #include <QStyle>
 #include <QTimer>
+#include <QPainter>
+#include <QStyledItemDelegate>
+
+// 自定义ItemDelegate用于在列表项右侧绘制>符号
+class ClickableItemDelegate : public QStyledItemDelegate
+{
+public:
+    explicit ClickableItemDelegate(QObject *parent = nullptr) : QStyledItemDelegate(parent) {}
+
+    void paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const override
+    {
+        QStyledItemDelegate::paint(painter, option, index);
+
+        // 绘制>符号
+        QStyleOptionViewItem opt = option;
+        initStyleOption(&opt, index);
+
+        QRect rect = opt.rect;
+        QFont font = opt.font;
+        font.setPixelSize(18);
+        painter->setFont(font);
+        painter->setPen(QColor("#4A90E2"));
+
+        // 在右侧绘制>符号
+        QRect arrowRect(rect.right() - 30, rect.top(), 20, rect.height());
+        painter->drawText(arrowRect, Qt::AlignVCenter | Qt::AlignRight, ">");
+    }
+
+    QSize sizeHint(const QStyleOptionViewItem &option, const QModelIndex &index) const override
+    {
+        QSize size = QStyledItemDelegate::sizeHint(option, index);
+        size.setHeight(qMax(size.height(), 50)); // 确保最小高度为50
+        return size;
+    }
+};
 
 // 自定义对话框实现
 ChangelogDialog::ChangelogDialog(QWidget *parent) : QDialog(parent)
@@ -159,7 +194,6 @@ SettingsWidget::SettingsWidget(QWidget *parent) : QWidget(parent)
     m_captureIntervalSpinBox->setRange(10, 300); // 10秒到5分钟
     m_captureIntervalSpinBox->setValue(30); // 默认30秒
     m_captureIntervalSpinBox->setSuffix(" 秒");
-
     
     surveySettingsLayout->addWidget(m_autoRecordCheckBox,0,0,1,3);
     surveySettingsLayout->addWidget(m_autoCaptureCheckBox,1,0,1,3);
@@ -167,32 +201,40 @@ SettingsWidget::SettingsWidget(QWidget *parent) : QWidget(parent)
     surveySettingsLayout->addWidget(m_captureIntervalSpinBox,2,1,1,2);
     
     m_mainLayout->addWidget(m_surveySettingsGroup);
+
+    // 其他设置组
+    m_otherSettingsGroup = new QGroupBox("其他设置");
+
+    QVBoxLayout *otherSettingsLayout = new QVBoxLayout(m_otherSettingsGroup);
+
+    // 使用QListWidget实现其他设置
+    m_otherSettingsList = new QListWidget;
+
+    // 设置自定义委托以在右侧绘制>符号
+    m_otherSettingsList->setItemDelegate(new ClickableItemDelegate(m_otherSettingsList));
+
+    // 添加"查看更新日志"项到列表
+    QListWidgetItem *changelogItem = new QListWidgetItem("查看更新日志");
+    changelogItem->setTextAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+    m_otherSettingsList->addItem(changelogItem);
+
+    otherSettingsLayout->addWidget(m_otherSettingsList);
+    m_mainLayout->addWidget(m_otherSettingsGroup);
     
-    // 更新日志按钮
-    m_changelogButton = new QPushButton("查看更新日志");
-    connect(m_changelogButton, &QPushButton::clicked, this, &SettingsWidget::onShowChangelogClicked);
-    
-    QHBoxLayout *changelogLayout = new QHBoxLayout;
-    changelogLayout->addStretch();
-    changelogLayout->addWidget(m_changelogButton);
-    changelogLayout->addStretch();
-    m_mainLayout->addLayout(changelogLayout);
-    
-    // 保存按钮
-    QPushButton *saveButton = new QPushButton("保存设置");
-    connect(saveButton, &QPushButton::clicked, this, &SettingsWidget::onSaveClicked);
-    
-    QHBoxLayout *buttonLayout = new QHBoxLayout;
-    buttonLayout->addStretch();
-    buttonLayout->addWidget(saveButton);
-    buttonLayout->addStretch();
-    m_mainLayout->addLayout(buttonLayout);
-    m_mainLayout->addStretch();
+
 
     SettingsManager::getInstance().loadFromFile();
     
     // 加载设置
     loadSettings();
+
+    // 连接设置控件的信号到槽函数，实现自动保存
+    connect(m_autoRecordCheckBox, &QCheckBox::checkStateChanged, this, &SettingsWidget::onSettingChanged);
+    connect(m_autoCaptureCheckBox, &QCheckBox::checkStateChanged, this, &SettingsWidget::onSettingChanged);
+    connect(m_captureIntervalSpinBox, QOverload<int>::of(&QSpinBox::valueChanged), this, &SettingsWidget::onSettingChanged);
+
+    // 连接其他设置列表项的点击信号
+    connect(m_otherSettingsList, &QListWidget::itemClicked, this, &SettingsWidget::onOtherSettingsItemClicked);
 }
 
 void SettingsWidget::loadSettings()
@@ -207,19 +249,19 @@ void SettingsWidget::saveSettings()
     SettingsManager::getInstance().setValue("survey/autoRecord", m_autoRecordCheckBox->isChecked());
     SettingsManager::getInstance().setValue("survey/autoCapture", m_autoCaptureCheckBox->isChecked());
     SettingsManager::getInstance().setValue("survey/captureInterval", m_captureIntervalSpinBox->value());
+
+    SettingsManager::getInstance().saveToFile();
 }
 
-void SettingsWidget::onSaveClicked()
+void SettingsWidget::onSettingChanged()
 {
     saveSettings();
     
     // 显示保存成功的提示（可以使用 QMessageBox 或其他方式）
-    QMessageBox::information(this, "设置保存", "设置已成功保存！");
-    
-    SettingsManager::getInstance().saveToFile();
+    // QMessageBox::information(this, "设置保存", "设置已成功保存！");
     
     // 通知主窗口设置已保存
-    QApplication::processEvents();
+    // QApplication::processEvents();
 }
 
 void SettingsWidget::onBackClicked()
@@ -232,6 +274,14 @@ void SettingsWidget::onShowChangelogClicked()
     ChangelogDialog *dialog = createChangelogDialog();
     dialog->exec();
     delete dialog;
+}
+
+void SettingsWidget::onOtherSettingsItemClicked(QListWidgetItem *item)
+{
+    // 检查点击的项是否为"查看更新日志"
+    if (item->text() == "查看更新日志") {
+        onShowChangelogClicked();
+    }
 }
 
 ChangelogDialog* SettingsWidget::createChangelogDialog()

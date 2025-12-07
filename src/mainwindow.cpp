@@ -17,7 +17,9 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
-#include <QtCore/private/qandroidextras_p.h>
+#ifdef Q_OS_ANDROID
+    #include <QtCore/private/qandroidextras_p.h>
+#endif
 #include <QFuture>
 #include <QFutureWatcher>
 #include <QThread>
@@ -73,8 +75,8 @@ MainWindow::~MainWindow()
 
 void MainWindow::setupUi()
 {
-    setWindowTitle(APP_NAME);
-    resize(800, 600);
+    // setWindowTitle(APP_NAME);
+    // resize(800, 600);
 
     // 创建菜单栏
     QMenu *fileMenu = menuBar()->addMenu("文件");
@@ -114,25 +116,22 @@ void MainWindow::setupUi()
     connect(m_loginDialog, &LoginDialog::captchaRefreshRequested, &nm, &NetworkManager::onRefreshCaptcha);
 
     // 连接网络管理器的信号
-    connect(&nm, &NetworkManager::loginFailed, [this](const QString& error) {
-        QMessageBox::warning(this, "登录失败", error);
-        LogFileManager::instance().logError("LoginError", error);
-    });
+    connect(&nm, &NetworkManager::loginFailed, this ,&MainWindow::onLogFailed, Qt::QueuedConnection);
 
-    connect(&nm, &NetworkManager::registerSuccess, this, &MainWindow::onLoginSuccess);
-    connect(&nm, &NetworkManager::registerFailed, [this](const QString& error) {
-        QMessageBox::warning(this, "注册失败", error);
-        LogFileManager::instance().logError("LoginError", error);
-    });
+    connect(&nm, &NetworkManager::registerSuccess, this, &MainWindow::onLoginSuccess , Qt::QueuedConnection);
+    // connect(&nm, &NetworkManager::registerFailed, [this](const QString& error) {
+    //     QMessageBox::warning(this, "注册失败", error);
+    //     LogFileManager::instance().logError("LoginError", error);
+    // }, Qt::QueuedConnection);
 
-    connect(&nm, &NetworkManager::surveySchemaReceived, this, &MainWindow::onSurveySchemaReceived);
-    connect(&nm, &NetworkManager::submitSuccess, this, &MainWindow::onSubmitSuccess);
-    connect(&nm, &NetworkManager::submitFailed, this, &MainWindow::onSubmitFailed);
-    connect(&nm, &NetworkManager::networkError, this, &MainWindow::onNetworkError);
+    connect(&nm, &NetworkManager::surveySchemaReceived, this, &MainWindow::onSurveySchemaReceived, Qt::QueuedConnection);
+    connect(&nm, &NetworkManager::submitSuccess, this, &MainWindow::onSubmitSuccess, Qt::QueuedConnection);
+    connect(&nm, &NetworkManager::submitFailed, this, &MainWindow::onSubmitFailed, Qt::QueuedConnection);
+    connect(&nm, &NetworkManager::networkError, this, &MainWindow::onNetworkError, Qt::QueuedConnection);
     
     // 连接仪表板相关的信号
-    connect(&nm, &NetworkManager::currentUserReceived, this, &MainWindow::onLoginSuccess);
-    connect(&nm, &NetworkManager::projectListReceived, this, &MainWindow::onProjectListReceived);
+    connect(&nm, &NetworkManager::currentUserReceived, this, &MainWindow::onLoginSuccess, Qt::QueuedConnection);
+    connect(&nm, &NetworkManager::projectListReceived, this, &MainWindow::onProjectListReceived, Qt::QueuedConnection);
 
     connect(this, &MainWindow::Signallogin,&nm, &NetworkManager::login);
     connect(this, &MainWindow::SignalregisterUser,&nm, &NetworkManager::registerUser);
@@ -233,8 +232,8 @@ void MainWindow::onSurveySelected(const QString& surveyId, const QString& title)
     // 连接 NetworkManager 的文件上传信号
     connect(m_surveyFormWidget, &SurveyFormWidget::submitSurvey, this, &MainWindow::onSubmitResponse);
     connect(m_surveyFormWidget, &SurveyFormWidget::UploadFile, &NetworkManager::instance(), &NetworkManager::uploadFile);
-    connect(&NetworkManager::instance(), &NetworkManager::fileUploadSuccess, m_surveyFormWidget, &SurveyFormWidget::handleUploadSuccsee);
-    connect(&NetworkManager::instance(), &NetworkManager::fileUploadFailed, m_surveyFormWidget, &SurveyFormWidget::handleUploadFailed);
+    connect(&NetworkManager::instance(), &NetworkManager::fileUploadSuccess, m_surveyFormWidget, &SurveyFormWidget::handleUploadSuccsee, Qt::QueuedConnection);
+    connect(&NetworkManager::instance(), &NetworkManager::fileUploadFailed, m_surveyFormWidget, &SurveyFormWidget::handleUploadFailed, Qt::QueuedConnection);
     
     // 连接返回问卷列表信号
     connect(m_surveyFormWidget, &SurveyFormWidget::backToSurveyList, this, &MainWindow::onBackToSurveyList);
@@ -318,6 +317,12 @@ void MainWindow::onLogout()
     showLoginDialog();
 }
 
+void MainWindow::onLogFailed(const QString &error)
+{
+    QMessageBox::warning(this, "登录失败", error);
+    LogFileManager::instance().logError("LoginError", error);
+}
+
 void MainWindow::InitLog()
 {
     // 初始化日志系统
@@ -380,6 +385,9 @@ void MainWindow::onBackToSurveyList()
 void MainWindow::requestInitialPermissions()
 {
     FUNCTION_LOG();
+
+    // TODO: 应用的隐私政策显示
+
     // 请求录音权限
     PermissionManager::instance().requestAudioRecordingPermission([this](bool granted) {
         if (granted) {
